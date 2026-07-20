@@ -19,11 +19,11 @@ export default function Layout() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-slate-100 flex" dir="rtl">
       {/* Sidebar */}
-      <aside className="w-72 bg-slate-900 text-white flex flex-col shadow-xl z-10">
-        <div className="p-6 border-b border-slate-800">
-          <h2 className="text-xl font-bold flex items-center gap-3 text-white">
+      <aside className="w-72 bg-white text-black flex flex-col shadow-md z-10 border-l border-slate-300">
+        <div className="p-6 border-b border-slate-200">
+          <h2 className="text-xl font-bold flex items-center gap-3 text-black">
             <div className="bg-blue-800 p-2 rounded-lg">
               <Settings2 size={24} className="text-white" />
             </div>
@@ -32,14 +32,14 @@ export default function Layout() {
         </div>
         
         <div className="p-6 flex-1 flex flex-col gap-8">
-          <div className="flex items-center gap-4 bg-slate-800 p-4 rounded-xl border border-slate-700">
-            <div className="bg-slate-700 p-3 rounded-full">
-              <User size={24} className="text-blue-400" />
+          <div className="flex items-center gap-4 bg-slate-100 p-4 rounded-xl border border-slate-300">
+            <div className="bg-slate-200 p-3 rounded-full">
+              <User size={24} className="text-blue-900" />
             </div>
             <div>
-              <p className="text-sm text-slate-300">مرحباً بك</p>
-              <p className="font-bold text-lg text-white">{currentUser?.username}</p>
-              <span className="text-xs font-medium bg-blue-500/20 text-blue-300 px-2.5 py-1 rounded-full inline-block mt-1">
+              <p className="text-sm text-slate-800 font-bold">مرحباً بك</p>
+              <p className="font-bold text-lg text-black">{currentUser?.username}</p>
+              <span className="text-xs font-bold bg-blue-100 text-blue-900 px-2.5 py-1 rounded-full inline-block mt-1 border border-blue-200">
                 {getRoleName(currentUser?.role || '')}
               </span>
             </div>
@@ -49,7 +49,7 @@ export default function Layout() {
             <NavLink 
               to="/" 
               end
-              className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${isActive ? 'bg-blue-900 text-white shadow-md shadow-blue-900/20' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
+              className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold ${isActive ? 'bg-blue-800 text-white shadow-md' : 'text-slate-900 hover:bg-slate-100 hover:text-black border border-transparent hover:border-slate-300'}`}
             >
               <LayoutDashboard size={20} />
               الرئيسية
@@ -57,7 +57,7 @@ export default function Layout() {
             
             <NavLink 
               to="/assets" 
-              className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${isActive ? 'bg-blue-600 text-white shadow-md shadow-blue-900/20' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
+              className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold ${isActive ? 'bg-blue-800 text-white shadow-md' : 'text-slate-900 hover:bg-slate-100 hover:text-black border border-transparent hover:border-slate-300'}`}
             >
               <ClipboardList size={20} />
               العهد والأصول
@@ -65,7 +65,7 @@ export default function Layout() {
 
             <NavLink 
               to="/maintenance" 
-              className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${isActive ? 'bg-blue-600 text-white shadow-md shadow-blue-900/20' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
+              className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold ${isActive ? 'bg-blue-800 text-white shadow-md' : 'text-slate-900 hover:bg-slate-100 hover:text-black border border-transparent hover:border-slate-300'}`}
             >
               <Wrench size={20} />
               طلبات الصيانة
@@ -74,7 +74,7 @@ export default function Layout() {
             {(currentUser?.role === 'admin' || currentUser?.role === 'tech') && (
               <NavLink 
                 to="/tracking" 
-                className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${isActive ? 'bg-blue-600 text-white shadow-md shadow-blue-900/20' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
+                className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold ${isActive ? 'bg-blue-800 text-white shadow-md' : 'text-slate-900 hover:bg-slate-100 hover:text-black border border-transparent hover:border-slate-300'}`}
               >
                 <Settings2 size={20} />
                 متابعة الصيانة الدورية
@@ -83,10 +83,10 @@ export default function Layout() {
           </nav>
         </div>
 
-        <div className="p-6 border-t border-slate-800">
+        <div className="p-6 border-t border-slate-200">
           <button 
             onClick={logout}
-            className="flex items-center justify-center gap-3 px-4 py-3 w-full text-red-400 font-medium hover:bg-red-500/10 rounded-xl transition-colors border border-transparent hover:border-red-500/20 cursor-pointer"
+            className="flex items-center justify-center gap-3 px-4 py-3 w-full text-red-700 font-bold hover:bg-red-50 rounded-xl transition-colors border border-red-300 hover:border-red-500 cursor-pointer"
           >
             <LogOut size={20} />
             تسجيل الخروج
@@ -95,21 +95,18 @@ export default function Layout() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
-        {/* Header background pattern for aesthetics */}
-        <div className="absolute top-0 left-0 right-0 h-48 bg-blue-600 -z-10 rounded-b-3xl"></div>
-        
-        <header className="px-8 py-6 flex justify-between items-center text-white z-0">
+      <main className="flex-1 flex flex-col min-h-0 overflow-hidden relative bg-slate-100">
+        <header className="px-8 py-6 flex justify-between items-center text-black z-10 border-b border-slate-300 bg-white shadow-sm mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-white">لوحة التحكم</h1>
-            <p className="text-blue-100 mt-1">نظام إدارة متكامل للعهد والمتابعة</p>
+            <h1 className="text-2xl font-bold text-black">لوحة التحكم</h1>
+            <p className="text-slate-900 mt-1 font-bold">نظام إدارة متكامل للعهد والمتابعة</p>
           </div>
           {!isHome && (
             <button
               onClick={() => navigate('/')}
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer border border-white/10 shadow-sm"
+              className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-black px-4 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer border border-slate-400 shadow-sm"
             >
-              <ArrowRight size={18} />
+              <ArrowRight size={18} className="text-black" />
               العودة للرئيسية
             </button>
           )}

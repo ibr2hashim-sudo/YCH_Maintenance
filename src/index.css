@@ -7,16 +7,47 @@
 
 body {
   font-family: "Tajawal", sans-serif;
-  background-color: #f8fafc;
-  color: #0f172a; /* جعل لون النص الافتراضي في الموقع كله داكناً وواضماً (كحلي غامق) */
+  background-color: #f1f5f9;
+  color: #000000 !important;
 }
 
-/* ضمان ظهور النصوص والفقرات بوضوح داخل منطقة المحتوى والبطاقات */
-main p, main span, main div, main h1, main h2, main h3, main h4 {
-  /* نترك اللون يرث الافتراضي أو نحدد وضوحه إذا لم يكن ملوناً مسبقاً */
+/* Force slate/gray text to be solid black for maximum legibility */
+.text-slate-400, .text-slate-500, .text-slate-600, .text-slate-700, .text-slate-800, .text-slate-900,
+.text-gray-400, .text-gray-500, .text-gray-600, .text-gray-700, .text-gray-800, .text-gray-900 {
+  color: #000000 !important;
 }
 
-/* استثناء العناصر داخل القائمة الجانبية أو الأزرار الزرقاء لتظل بيضاء كما ينبغي */
-aside *, header * {
-  /* المحافظة على ألوان الهيدر والسايدبار المحددة في الكود */
+/* Set status values and tags to highly visible dark colors */
+.text-blue-500, .text-blue-600, .text-blue-700, .text-blue-800, .text-blue-900 {
+  color: #000000 !important; /* Force black for maximum clarity */
+}
+.text-amber-500, .text-amber-600, .text-amber-700, .text-amber-800, .text-amber-900 {
+  color: #7c2d12 !important; /* Dark Brown/Amber */
+}
+.text-emerald-500, .text-emerald-600, .text-emerald-700, .text-emerald-800, .text-emerald-900 {
+  color: #064e3b !important; /* Dark Green */
+}
+.text-red-500, .text-red-600, .text-red-700, .text-red-800, .text-red-900 {
+  color: #7f1d1d !important; /* Dark Red */
+}
+
+/* Protect white text explicitly for buttons and indicators */
+.text-white {
+  color: #ffffff !important;
+}
+
+/* Make sure all inputs have solid black values, clear placeholders and darker borders */
+input, select, textarea {
+  color: #000000 !important;
+  border-color: #64748b !important; /* Highly visible slate-500 borders */
+  background-color: #ffffff !important;
+}
+
+input::placeholder, textarea::placeholder {
+  color: #475569 !important; /* Darker placeholder text */
+}
+
+/* Additional specificity for cards and dashboards */
+main p, main span, main div, main h1, main h2, main h3, main h4, main strong, main label {
+  color: inherit;
 }
