@@ -24,7 +24,7 @@ export default function Layout() {
       <aside className="w-72 bg-slate-900 text-white flex flex-col shadow-xl z-10">
         <div className="p-6 border-b border-slate-800">
           <h2 className="text-xl font-bold flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg">
+            <div className="bg-blue-800 p-2 rounded-lg">
               <Settings2 size={24} className="text-white" />
             </div>
             إدارة الصيانة
@@ -37,9 +37,9 @@ export default function Layout() {
               <User size={24} className="text-blue-400" />
             </div>
             <div>
-              <p className="text-sm text-slate-400">مرحباً بك</p>
+              <p className="text-sm text-slate-900">مرحباً بك</p>
               <p className="font-bold text-lg">{currentUser?.username}</p>
-              <span className="text-xs font-medium bg-blue-500/20 text-blue-300 px-2.5 py-1 rounded-full inline-block mt-1">
+              <span className="text-xs font-medium bg-blue-500/20 text-blue-900 px-2.5 py-1 rounded-full inline-block mt-1">
                 {getRoleName(currentUser?.role || '')}
               </span>
             </div>
@@ -49,7 +49,7 @@ export default function Layout() {
             <NavLink 
               to="/" 
               end
-              className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${isActive ? 'bg-blue-600 text-white shadow-md shadow-blue-900/20' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
+              className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${isActive ? 'bg-blue-900 text-white shadow-md shadow-blue-900/20' : 'text-slate-900 hover:bg-slate-800 hover:text-white'}`}
             >
               <LayoutDashboard size={20} />
               الرئيسية
@@ -57,7 +57,7 @@ export default function Layout() {
             
             <NavLink 
               to="/assets" 
-              className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${isActive ? 'bg-blue-600 text-white shadow-md shadow-blue-900/20' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
+              className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${isActive ? 'bg-blue-600 text-white shadow-md shadow-blue-900/20' : 'text-slate-900 hover:bg-slate-800 hover:text-white'}`}
             >
               <ClipboardList size={20} />
               العهد والأصول
