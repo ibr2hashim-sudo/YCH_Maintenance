@@ -134,15 +134,15 @@ export default function Tracking() {
           </button>
           <div>
             <h2 className="text-2xl font-bold text-slate-800">متابعة الصيانة الدورية للأجهزة</h2>
-            <p className="text-slate-500 text-sm mt-1">تتبع مجدول للتكييف، الزيوت والفلاتر، البطاريات، والصيانة المخصصة.</p>
+            <p className="text-slate-700 text-sm mt-1">تتبع مجدول للتكييف، الزيوت والفلاتر، البطاريات، والصيانة المخصصة.</p>
           </div>
         </div>
 
         {currentUser?.role === 'admin' && selectedCategory === 'زيوت وفلاتر' && (
           <div className="bg-blue-50 border border-blue-200 p-4 rounded-2xl flex items-center gap-4 text-xs">
-            <Settings2 className="text-blue-600" size={20} />
+            <Settings2 className="text-blue-800" size={20} />
             <div>
-              <label className="block text-slate-600 font-bold mb-1">المدير: ضبط فاصلي عداد الزيت (الافتراضي)</label>
+              <label className="block text-slate-800 font-bold mb-1">المدير: ضبط فاصلي عداد الزيت (الافتراضي)</label>
               <div className="flex gap-2">
                 <input 
                   type="number"
@@ -150,7 +150,7 @@ export default function Tracking() {
                   onChange={(e) => setOilFilterInterval(Number(e.target.value))}
                   className="w-24 px-2 py-1.5 border border-slate-300 rounded-xl outline-none focus:ring-1 focus:ring-blue-500 bg-white text-center font-bold"
                 />
-                <span className="text-slate-500 self-center">وحدة</span>
+                <span className="text-slate-700 self-center">وحدة</span>
               </div>
             </div>
           </div>
@@ -211,7 +211,7 @@ export default function Tracking() {
                   className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-blue-500 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between h-44 group"
                 >
                   <div className="flex justify-between items-start">
-                    <div className="bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white p-3 rounded-xl transition-all">
+                    <div className="bg-blue-50 text-blue-800 group-hover:bg-blue-600 group-hover:text-white p-3 rounded-xl transition-all">
                       <Wrench size={22} />
                     </div>
                     <span className="text-slate-400 text-xs font-bold font-mono bg-slate-100 px-2 py-1 rounded">
@@ -220,8 +220,8 @@ export default function Tracking() {
                   </div>
 
                   <div>
-                    <h3 className="text-lg font-bold text-slate-800 mb-1 group-hover:text-blue-600 transition-all">{cat}</h3>
-                    <p className="text-xs text-slate-500">متابعة سجلات ومعايرة صيانة الـ {cat}.</p>
+                    <h3 className="text-lg font-bold text-slate-800 mb-1 group-hover:text-blue-800 transition-all">{cat}</h3>
+                    <p className="text-xs text-slate-700">متابعة سجلات ومعايرة صيانة الـ {cat}.</p>
                   </div>
                 </div>
               );
@@ -233,7 +233,7 @@ export default function Tracking() {
               className="bg-dashed border-2 border-slate-300 hover:border-blue-500 hover:bg-blue-50/20 rounded-2xl p-6 h-44 flex flex-col items-center justify-center cursor-pointer transition-all group"
             >
               <PlusCircle size={32} className="text-slate-400 group-hover:text-blue-500 transition-colors mb-2" />
-              <strong className="text-slate-600 group-hover:text-blue-600 transition-colors text-sm">إضافة نوع صيانة جديدة</strong>
+              <strong className="text-slate-800 group-hover:text-blue-800 transition-colors text-sm">إضافة نوع صيانة جديدة</strong>
             </div>
           </div>
         </div>
@@ -255,7 +255,7 @@ export default function Tracking() {
               <>
                 {trackedDepts.length === 0 ? (
                   <div className="bg-white p-8 rounded-2xl text-center border">
-                    <span className="text-sm text-slate-500">لا توجد أقسام مدرجة في هذه الفئة حتى الآن.</span>
+                    <span className="text-sm text-slate-700">لا توجد أقسام مدرجة في هذه الفئة حتى الآن.</span>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -311,7 +311,7 @@ export default function Tracking() {
             <h3 className="text-lg font-bold text-slate-800">الأجهزة المدرجة بالمتابعة لقسم ({activeDept?.name})</h3>
             <button 
               onClick={() => setSelectedDeptId(null)} 
-              className="text-xs text-blue-600 hover:underline cursor-pointer"
+              className="text-xs text-blue-800 hover:underline cursor-pointer"
             >
               الرجوع لاختيار قسم آخر
             </button>
@@ -330,7 +330,7 @@ export default function Tracking() {
               <>
                 {trackedDevices.length === 0 ? (
                   <div className="bg-white p-8 rounded-2xl text-center border">
-                    <span className="text-sm text-slate-500">لا توجد أجهزة مدرجة في هذه الفئة للقسم المحدد.</span>
+                    <span className="text-sm text-slate-700">لا توجد أجهزة مدرجة في هذه الفئة للقسم المحدد.</span>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -348,8 +348,8 @@ export default function Tracking() {
                           </div>
                           
                           <div className="flex justify-between items-center text-xs mt-4 pt-3 border-t border-slate-50">
-                            <span className="text-slate-500">مجموع الفحوصات:</span>
-                            <strong className="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-bold">
+                            <span className="text-slate-700">مجموع الفحوصات:</span>
+                            <strong className="bg-blue-50 text-blue-900 px-2.5 py-1 rounded-full font-bold">
                               {logsCount} فحوصات دورية
                             </strong>
                           </div>
@@ -364,7 +364,7 @@ export default function Tracking() {
                     <h4 className="text-base font-bold text-slate-800 mb-4">إدراج جهاز جديد للمتابعة (خاص بالمدير)</h4>
                     <div className="flex gap-4 items-end">
                       <div className="flex-1 max-w-md">
-                        <label className="block text-xs font-bold text-slate-600 mb-1.5">اختر جهازاً من القسم لإدراجه في فئة ({selectedCategory}):</label>
+                        <label className="block text-xs font-bold text-slate-800 mb-1.5">اختر جهازاً من القسم لإدراجه في فئة ({selectedCategory}):</label>
                         <select 
                           className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white cursor-pointer"
                           onChange={(e) => {
@@ -395,13 +395,13 @@ export default function Tracking() {
           {/* New Log Logger Form */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
             <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <PlusCircle className="text-blue-600" size={20} />
+              <PlusCircle className="text-blue-800" size={20} />
               تسجيل عملية صيانة دورية
             </h3>
 
             <form onSubmit={handleCreateLogSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1.5">تاريخ إجراء الصيانة الدورية *</label>
+                <label className="block text-xs font-bold text-slate-800 mb-1.5">تاريخ إجراء الصيانة الدورية *</label>
                 <input 
                   type="date"
                   value={logDate}
@@ -414,7 +414,7 @@ export default function Tracking() {
               {/* Dynamic Inputs based on Category */}
               {selectedCategory === 'تكييف' && (
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1.5">ما تم عمله صيانة للتكييف بالتفصيل *</label>
+                  <label className="block text-xs font-bold text-slate-800 mb-1.5">ما تم عمله صيانة للتكييف بالتفصيل *</label>
                   <textarea
                     value={acAction}
                     onChange={(e) => setAcAction(e.target.value)}
@@ -429,7 +429,7 @@ export default function Tracking() {
               {selectedCategory === 'زيوت وفلاتر' && (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1.5">قراءة العداد الحالي لجهاز الجري / التشغيل *</label>
+                    <label className="block text-xs font-bold text-slate-800 mb-1.5">قراءة العداد الحالي لجهاز الجري / التشغيل *</label>
                     <input 
                       type="number"
                       value={oilCurrentCounter}
@@ -445,7 +445,7 @@ export default function Tracking() {
                     <strong className="text-sm font-bold font-mono">
                       {Number(oilCurrentCounter) + Number(oilFilterInterval)} وحدة
                     </strong>
-                    <span className="block text-[10px] text-amber-700 mt-1">
+                    <span className="block text-[10px] text-amber-900 mt-1">
                       (تم الاحتساب بناءً على فترة الجدولة المحددة من الإدارة: {oilFilterInterval} وحدة)
                     </span>
                   </div>
@@ -454,7 +454,7 @@ export default function Tracking() {
 
               {selectedCategory === 'بطاريات' && (
                 <div className="space-y-3 bg-slate-50 p-4 rounded-xl border text-xs">
-                  <span className="font-bold text-slate-600 block mb-1">سيتم ربط صيانة البطارية بالبيانات التالية:</span>
+                  <span className="font-bold text-slate-800 block mb-1">سيتم ربط صيانة البطارية بالبيانات التالية:</span>
                   <div>
                     <span className="text-slate-400">اسم الجهاز:</span>
                     <strong className="text-slate-800 block">{activeDevice.name}</strong>
@@ -473,7 +473,7 @@ export default function Tracking() {
               {/* Custom categories */}
               {selectedCategory !== 'تكييف' && selectedCategory !== 'زيوت وفلاتر' && selectedCategory !== 'بطاريات' && (
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1.5">ملاحظات وتقرير صيانة الـ {selectedCategory} بالتفصيل *</label>
+                  <label className="block text-xs font-bold text-slate-800 mb-1.5">ملاحظات وتقرير صيانة الـ {selectedCategory} بالتفصيل *</label>
                   <textarea
                     value={customLogDetails}
                     onChange={(e) => setCustomLogDetails(e.target.value)}
@@ -498,20 +498,20 @@ export default function Tracking() {
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2 space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <Bookmark className="text-slate-500" size={20} />
+                <Bookmark className="text-slate-700" size={20} />
                 سجل صيانة الجهاز السابقة ({selectedCategory})
               </h3>
               
               <button 
                 onClick={() => setSelectedDeviceId(null)}
-                className="text-xs text-blue-600 hover:underline cursor-pointer"
+                className="text-xs text-blue-800 hover:underline cursor-pointer"
               >
                 تغيير الجهاز
               </button>
             </div>
 
             {activeDeviceLogs.length === 0 ? (
-              <div className="p-12 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200 text-slate-500 text-xs">
+              <div className="p-12 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200 text-slate-700 text-xs">
                 لا توجد سجلات صيانة دورية مدونة لهذا الجهاز مسبقاً في فئة ({selectedCategory}).
               </div>
             ) : (
@@ -557,7 +557,7 @@ export default function Tracking() {
 
                     {/* Battery Details */}
                     {log.type === 'بطاريات' && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px] text-slate-600 bg-white p-3 rounded-lg border">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px] text-slate-800 bg-white p-3 rounded-lg border">
                         <div>
                           <span>اسم الجهاز: </span>
                           <strong className="text-slate-800 font-bold">{log.details?.deviceName}</strong>
@@ -572,7 +572,7 @@ export default function Tracking() {
                         </div>
                         <div>
                           <span>تاريخ التغيير الفعلي للبطارية: </span>
-                          <strong className="text-blue-700 font-bold font-mono">{log.details?.replacementDate}</strong>
+                          <strong className="text-blue-900 font-bold font-mono">{log.details?.replacementDate}</strong>
                         </div>
                       </div>
                     )}
@@ -597,14 +597,14 @@ export default function Tracking() {
           <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-200 w-full max-w-md text-right relative">
             <button 
               onClick={() => setIsCategoryModalOpen(false)} 
-              className="absolute top-4 left-4 text-slate-400 hover:text-slate-600 cursor-pointer"
+              className="absolute top-4 left-4 text-slate-400 hover:text-slate-800 cursor-pointer"
             >
               <X size={20} />
             </button>
             <h3 className="text-lg font-bold text-slate-800 mb-4">إضافة نوع صيانة دورية مخصص</h3>
             <form onSubmit={handleAddCategorySubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1.5">اسم فئة الصيانة الجديدة</label>
+                <label className="block text-xs font-bold text-slate-800 mb-1.5">اسم فئة الصيانة الجديدة</label>
                 <input 
                   type="text" 
                   value={newCategoryName}
@@ -630,7 +630,7 @@ export default function Tracking() {
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn">
           <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-200 w-full max-w-md text-right relative">
             <h3 className="text-xl font-bold text-slate-800 mb-2 text-center">حذف سجل الصيانة</h3>
-            <p className="text-slate-600 text-sm text-center mb-6">
+            <p className="text-slate-800 text-sm text-center mb-6">
               هل أنت متأكد من رغبتك في حذف هذا السجل الفردي من الأرشيف الدوري؟
             </p>
             <div className="flex gap-3">

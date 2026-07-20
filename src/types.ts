@@ -19,6 +19,7 @@ export interface Device {
   id: string;
   departmentId: string;
   name: string;
+  type?: string;
   customId: string; // ID مخصص لكل جهاز
   currentQty: number;
   bookQty: number;

@@ -59,7 +59,7 @@ export default function Dashboard() {
       case 'tech':
         return <span className="bg-yellow-50 text-yellow-700 border border-yellow-200 px-2 py-1 rounded text-xs font-bold">فني صيانة</span>;
       case 'supervisor':
-        return <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2 py-1 rounded text-xs font-bold">مشرف قسم</span>;
+        return <span className="bg-blue-50 text-blue-900 border border-blue-200 px-2 py-1 rounded text-xs font-bold">مشرف قسم</span>;
     }
   };
 
@@ -83,14 +83,14 @@ export default function Dashboard() {
         <div className="flex border-b border-slate-200">
           <button
             onClick={() => setActiveTab('stats')}
-            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 flex items-center gap-2 cursor-pointer ${activeTab === 'stats' ? 'border-blue-600 text-blue-600 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 flex items-center gap-2 cursor-pointer ${activeTab === 'stats' ? 'border-blue-600 text-blue-800 font-bold' : 'border-transparent text-slate-700 hover:text-slate-800'}`}
           >
             <Landmark size={18} />
             إحصائيات النظام
           </button>
           <button
             onClick={() => setActiveTab('users')}
-            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 flex items-center gap-2 cursor-pointer ${activeTab === 'users' ? 'border-blue-600 text-blue-600 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 flex items-center gap-2 cursor-pointer ${activeTab === 'users' ? 'border-blue-600 text-blue-800 font-bold' : 'border-transparent text-slate-700 hover:text-slate-800'}`}
           >
             <Users size={18} />
             إدارة المستخدمين والصلحيات ({users.length})
@@ -103,21 +103,21 @@ export default function Dashboard() {
           {/* Dashboard Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
-              <div className="bg-blue-100 p-4 rounded-xl text-blue-600">
+              <div className="bg-blue-100 p-4 rounded-xl text-blue-800">
                 <Landmark size={24} />
               </div>
               <div>
-                <span className="text-slate-500 text-xs font-bold block mb-1">إجمالي الأقسام</span>
+                <span className="text-slate-700 text-xs font-bold block mb-1">إجمالي الأقسام</span>
                 <span className="text-3xl font-bold text-slate-800">{departments.length}</span>
               </div>
             </div>
 
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
-              <div className="bg-emerald-100 p-4 rounded-xl text-emerald-600">
+              <div className="bg-emerald-100 p-4 rounded-xl text-emerald-800">
                 <Briefcase size={24} />
               </div>
               <div>
-                <span className="text-slate-500 text-xs font-bold block mb-1">الأجهزة والعهد المسجلة</span>
+                <span className="text-slate-700 text-xs font-bold block mb-1">الأجهزة والعهد المسجلة</span>
                 <span className="text-3xl font-bold text-slate-800">{devices.length}</span>
               </div>
             </div>
@@ -127,7 +127,7 @@ export default function Dashboard() {
                 <ShieldAlert size={24} />
               </div>
               <div>
-                <span className="text-slate-500 text-xs font-bold block mb-1">بلاغات صيانة نشطة</span>
+                <span className="text-slate-700 text-xs font-bold block mb-1">بلاغات صيانة نشطة</span>
                 <span className="text-3xl font-bold text-red-500">
                   {requests.filter(r => r.status === 'pending').length}
                 </span>
@@ -139,7 +139,7 @@ export default function Dashboard() {
                 <Wrench size={24} />
               </div>
               <div>
-                <span className="text-slate-500 text-xs font-bold block mb-1">قيد الصيانة</span>
+                <span className="text-slate-700 text-xs font-bold block mb-1">قيد الصيانة</span>
                 <span className="text-3xl font-bold text-amber-500">
                   {requests.filter(r => r.status === 'in_progress').length}
                 </span>
@@ -149,9 +149,9 @@ export default function Dashboard() {
 
           {/* Quick Guide and Instructions -> Main Navigation Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:col-span-2">
+            <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 p-6 ${currentUser?.role === 'admin' ? 'md:col-span-2' : 'md:col-span-3'}`}>
               <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                <HelpCircle className="text-blue-600" size={20} />
+                <HelpCircle className="text-blue-800" size={20} />
                 البنود الرئيسية للنظام (اضغط للدخول)
               </h3>
               
@@ -164,7 +164,7 @@ export default function Dashboard() {
                     <h4 className="font-bold text-slate-800 mb-1 flex items-center gap-2">
                       1. إدارة العهد والأصول 📦
                     </h4>
-                    <p className="text-xs text-slate-600 leading-relaxed pr-6">
+                    <p className="text-xs text-slate-800 leading-relaxed pr-6">
                       تصفح الأقسام الطبية، مجموع الأجهزة، إضافة أجهزة ومرفقات جديدة وتحديد حالتها.
                     </p>
                   </div>
@@ -179,7 +179,7 @@ export default function Dashboard() {
                     <h4 className="font-bold text-slate-800 mb-1 flex items-center gap-2">
                       2. طلبات الصيانة وبلاغات الأعطال 🔧
                     </h4>
-                    <p className="text-xs text-slate-600 leading-relaxed pr-6">
+                    <p className="text-xs text-slate-800 leading-relaxed pr-6">
                       إرسال شكاوى فورية، استلام بلاغات الأعطال، كتابة تقارير الصيانة، وإصدار تقرير مطبوع.
                     </p>
                   </div>
@@ -195,7 +195,7 @@ export default function Dashboard() {
                       <h4 className="font-bold text-slate-800 mb-1 flex items-center gap-2">
                         3. متابعة الصيانة الدورية 📅
                       </h4>
-                      <p className="text-xs text-slate-600 leading-relaxed pr-6">
+                      <p className="text-xs text-slate-800 leading-relaxed pr-6">
                         متابعة دورية مجدولة للفلاتر والزيوت، التكييف، والبطاريات للأجهزة وتدوين سجلاتها.
                       </p>
                     </div>
@@ -206,31 +206,33 @@ export default function Dashboard() {
             </div>
 
             {/* Sidebar quick contacts or helpful notes */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between">
-              <div>
-                <h3 className="text-lg font-bold text-slate-800 mb-4">أقسام المستشفى النشطة</h3>
-                <div className="space-y-2">
-                  {departments.map((dept) => {
-                    const count = devices.filter(d => d.departmentId === dept.id).length;
-                    return (
-                      <div key={dept.id} className="flex justify-between items-center bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-100">
-                        <span className="font-medium text-slate-700 text-sm">{dept.name}</span>
-                        <span className="bg-blue-100 text-blue-800 text-xs px-2.5 py-1 rounded-full font-bold">
-                          {count} أجهزة
-                        </span>
-                      </div>
-                    );
-                  })}
+            {currentUser?.role === 'admin' && (
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800 mb-4">أقسام المستشفى النشطة</h3>
+                  <div className="space-y-2">
+                    {departments.map((dept) => {
+                      const count = devices.filter(d => d.departmentId === dept.id).length;
+                      return (
+                        <div key={dept.id} className="flex justify-between items-center bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-100">
+                          <span className="font-medium text-slate-700 text-sm">{dept.name}</span>
+                          <span className="bg-blue-100 text-blue-800 text-xs px-2.5 py-1 rounded-full font-bold">
+                            {count} أجهزة
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                
+                <div className="mt-6 pt-6 border-t border-slate-100 bg-slate-50 -mx-6 -mb-6 p-6 rounded-b-2xl">
+                  <h4 className="font-bold text-xs text-slate-700 mb-1">إشعار سريع:</h4>
+                  <p className="text-xs text-slate-800">
+                    تأكد دائماً من معايرة الأجهزة الحساسة وتحديث بيانات العهد الدفترية لضمان تقارير جرد دقيقة.
+                  </p>
                 </div>
               </div>
-              
-              <div className="mt-6 pt-6 border-t border-slate-100 bg-slate-50 -mx-6 -mb-6 p-6 rounded-b-2xl">
-                <h4 className="font-bold text-xs text-slate-500 mb-1">إشعار سريع:</h4>
-                <p className="text-xs text-slate-600">
-                  تأكد دائماً من معايرة الأجهزة الحساسة وتحديث بيانات العهد الدفترية لضمان تقارير جرد دقيقة.
-                </p>
-              </div>
-            </div>
+            )}
           </div>
         </>
       ) : (
@@ -239,7 +241,7 @@ export default function Dashboard() {
           {/* Add User Panel */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
             <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-              <UserPlus className="text-blue-600" size={20} />
+              <UserPlus className="text-blue-800" size={20} />
               إضافة مستخدم جديد
             </h3>
 
@@ -256,7 +258,7 @@ export default function Dashboard() {
 
             <form onSubmit={handleAddUser} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1.5">اسم المستخدم (للتسجيل)</label>
+                <label className="block text-xs font-bold text-slate-800 mb-1.5">اسم المستخدم (للتسجيل)</label>
                 <input
                   type="text"
                   value={username}
@@ -268,7 +270,7 @@ export default function Dashboard() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1.5">كلمة المرور</label>
+                <label className="block text-xs font-bold text-slate-800 mb-1.5">كلمة المرور</label>
                 <input
                   type="password"
                   value={password}
@@ -279,7 +281,7 @@ export default function Dashboard() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1.5">الصلاحيات والوظيفة</label>
+                <label className="block text-xs font-bold text-slate-800 mb-1.5">الصلاحيات والوظيفة</label>
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value as Role)}
@@ -293,7 +295,7 @@ export default function Dashboard() {
 
               {role === 'supervisor' && (
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1.5">القسم المسؤول عنه</label>
+                  <label className="block text-xs font-bold text-slate-800 mb-1.5">القسم المسؤول عنه</label>
                   <select
                     value={deptId}
                     onChange={(e) => setDeptId(e.target.value)}
@@ -320,7 +322,7 @@ export default function Dashboard() {
           {/* User List Panel */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
             <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-              <Users className="text-slate-600" size={20} />
+              <Users className="text-slate-800" size={20} />
               مستخدمي النظام النشطين
             </h3>
 
@@ -342,7 +344,7 @@ export default function Dashboard() {
                     return (
                       <tr key={user.id} className="hover:bg-slate-50/50">
                         <td className="py-3.5 font-bold text-slate-800 flex items-center gap-2">
-                          <div className="bg-slate-100 p-1.5 rounded-full text-slate-500">
+                          <div className="bg-slate-100 p-1.5 rounded-full text-slate-700">
                             <Users size={14} />
                           </div>
                           {user.username} {isSelf && <span className="text-xs text-blue-500 font-normal">(أنت حالياً)</span>}
@@ -350,7 +352,7 @@ export default function Dashboard() {
                         <td className="py-3.5">
                           {getRoleBadge(user.role)}
                         </td>
-                        <td className="py-3.5 text-slate-600 font-medium">
+                        <td className="py-3.5 text-slate-800 font-medium">
                           {user.role === 'supervisor' ? (dept?.name || 'غير محدد') : 'كل الأقسام'}
                         </td>
                         <td className="py-3.5 text-left">
@@ -382,7 +384,7 @@ export default function Dashboard() {
               <ShieldAlert size={24} />
             </div>
             <h3 className="text-xl font-bold text-slate-800 mb-2 text-center">حذف حساب المستخدم</h3>
-            <p className="text-slate-600 text-sm text-center mb-6">
+            <p className="text-slate-800 text-sm text-center mb-6">
               هل أنت متأكد من رغبتك في حذف حساب ({userToDelete.username}) نهائياً؟
             </p>
             <div className="flex gap-3">

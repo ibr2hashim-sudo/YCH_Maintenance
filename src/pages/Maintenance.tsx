@@ -161,7 +161,7 @@ export default function Maintenance() {
           </button>
           <div>
             <h2 className="text-2xl font-bold text-slate-800">إدارة طلبات صيانة الأجهزة</h2>
-            <p className="text-slate-500 text-sm mt-1">
+            <p className="text-slate-700 text-sm mt-1">
               {currentUser?.role === 'supervisor' ? 'متابعة وتقديم بلاغات الأعطال للقسم' : 'تلقي بلاغات الأعطال الفورية وصيانتها'}
             </p>
           </div>
@@ -170,14 +170,14 @@ export default function Maintenance() {
         <div className="flex border-b border-slate-200 gap-2">
           <button
             onClick={() => { setActiveTab('list'); setSelectedRequestId(null); }}
-            className={`px-5 py-2.5 font-bold text-sm transition-all rounded-xl cursor-pointer ${activeTab === 'list' && !selectedRequestId ? 'bg-blue-50 text-blue-600 border border-blue-200' : 'text-slate-500 hover:bg-slate-50'}`}
+            className={`px-5 py-2.5 font-bold text-sm transition-all rounded-xl cursor-pointer ${activeTab === 'list' && !selectedRequestId ? 'bg-blue-50 text-blue-800 border border-blue-200' : 'text-slate-700 hover:bg-slate-50'}`}
           >
             جميع طلبات الصيانة ({filteredRequests.length})
           </button>
           
           <button
             onClick={() => { setActiveTab('new'); setSelectedRequestId(null); }}
-            className={`px-5 py-2.5 font-bold text-sm transition-all rounded-xl cursor-pointer ${activeTab === 'new' ? 'bg-blue-50 text-blue-600 border border-blue-200' : 'text-slate-500 hover:bg-slate-50'}`}
+            className={`px-5 py-2.5 font-bold text-sm transition-all rounded-xl cursor-pointer ${activeTab === 'new' ? 'bg-blue-50 text-blue-800 border border-blue-200' : 'text-slate-700 hover:bg-slate-50'}`}
           >
             تقديم بلاغ عطل جديد
           </button>
@@ -191,7 +191,7 @@ export default function Maintenance() {
             <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-sm">
               <ClipboardList size={48} className="text-slate-300 mx-auto mb-4" />
               <h3 className="font-bold text-slate-700 mb-1">لا توجد بلاغات أعطال حالياً!</h3>
-              <p className="text-slate-500 text-xs">الأقسام الطبية تعمل بصورة ممتازة والأجهزة الطبية سليمة.</p>
+              <p className="text-slate-700 text-xs">الأقسام الطبية تعمل بصورة ممتازة والأجهزة الطبية سليمة.</p>
             </div>
           ) : (
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden divide-y divide-slate-100">
@@ -209,21 +209,21 @@ export default function Maintenance() {
                       <div className="flex flex-wrap items-center gap-2.5">
                         <strong className="text-slate-800 text-base">{dev?.name || 'جهاز مجهول'}</strong>
                         <span className="text-slate-400 text-xs">•</span>
-                        <span className="text-slate-600 text-xs font-bold bg-slate-100 px-2.5 py-1 rounded-md">
+                        <span className="text-slate-800 text-xs font-bold bg-slate-100 px-2.5 py-1 rounded-md">
                           قسم: {dept?.name || 'مجهول'}
                         </span>
                         <span className="text-slate-400 text-xs">•</span>
-                        <span className="text-slate-500 text-xs font-mono">{req.date}</span>
+                        <span className="text-slate-700 text-xs font-mono">{req.date}</span>
                       </div>
                       
-                      <p className="text-slate-600 text-sm line-clamp-1 leading-relaxed pl-4">
+                      <p className="text-slate-800 text-sm line-clamp-1 leading-relaxed pl-4">
                         الشكوى: {req.complaint}
                       </p>
                     </div>
 
                     <div className="flex items-center gap-4">
                       {getStatusBadge(req.status)}
-                      <button className="text-blue-600 hover:bg-blue-50 text-xs font-bold px-3 py-1.5 rounded-lg border border-transparent hover:border-blue-200 cursor-pointer">
+                      <button className="text-blue-800 hover:bg-blue-50 text-xs font-bold px-3 py-1.5 rounded-lg border border-transparent hover:border-blue-200 cursor-pointer">
                         عرض وتحديث البلاغ
                       </button>
                     </div>
@@ -258,7 +258,7 @@ export default function Maintenance() {
             <form onSubmit={handleCreateRequestSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1.5">القسم المعني بالبلاغ *</label>
+                  <label className="block text-xs font-bold text-slate-800 mb-1.5">القسم المعني بالبلاغ *</label>
                   <select
                     value={targetDeptId}
                     onChange={(e) => { setTargetDeptId(e.target.value); setTargetDeviceId(''); }}
@@ -274,7 +274,7 @@ export default function Maintenance() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1.5">الجهاز المعطل بالقسم *</label>
+                  <label className="block text-xs font-bold text-slate-800 mb-1.5">الجهاز المعطل بالقسم *</label>
                   <select
                     value={targetDeviceId}
                     onChange={(e) => setTargetDeviceId(e.target.value)}
@@ -293,26 +293,26 @@ export default function Maintenance() {
               {selectedDeviceObj && (
                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 grid grid-cols-2 gap-4 text-xs">
                   <div>
-                    <span className="text-slate-500">طراز / موديل الجهاز:</span>
+                    <span className="text-slate-700">طراز / موديل الجهاز:</span>
                     <strong className="text-slate-800 block mt-0.5">{selectedDeviceObj.model}</strong>
                   </div>
                   <div>
-                    <span className="text-slate-500">الرقم التسلسلي (Serial):</span>
+                    <span className="text-slate-700">الرقم التسلسلي (Serial):</span>
                     <strong className="text-slate-800 block mt-0.5 font-mono">{selectedDeviceObj.serialNumber}</strong>
                   </div>
                   <div>
-                    <span className="text-slate-500">مستلم العهدة:</span>
+                    <span className="text-slate-700">مستلم العهدة:</span>
                     <strong className="text-slate-800 block mt-0.5">{selectedDeviceObj.custodian}</strong>
                   </div>
                   <div>
-                    <span className="text-slate-500">تاريخ اليوم (تلقائي):</span>
+                    <span className="text-slate-700">تاريخ اليوم (تلقائي):</span>
                     <strong className="text-slate-800 block mt-0.5 font-mono">{new Date().toISOString().split('T')[0]}</strong>
                   </div>
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1.5">وصف العطل بالتفصيل (الشكوى) *</label>
+                <label className="block text-xs font-bold text-slate-800 mb-1.5">وصف العطل بالتفصيل (الشكوى) *</label>
                 <textarea
                   value={complaintText}
                   onChange={(e) => setComplaintText(e.target.value)}
@@ -334,7 +334,7 @@ export default function Maintenance() {
 
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
             <h3 className="text-lg font-bold text-slate-800 mb-4">تنويه هام للسلامة</h3>
-            <div className="space-y-4 text-xs text-slate-600 leading-relaxed">
+            <div className="space-y-4 text-xs text-slate-800 leading-relaxed">
               <p>
                 - بمجرد إرسال البلاغ، سيتم إخطار جميع فنيي الصيانة المناوبين عبر إشارات تنبيه حمراء فورية.
               </p>
@@ -356,7 +356,7 @@ export default function Maintenance() {
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <button
               onClick={() => setSelectedRequestId(null)}
-              className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-bold text-sm cursor-pointer"
+              className="flex items-center gap-2 text-slate-700 hover:text-slate-800 font-bold text-sm cursor-pointer"
             >
               <ArrowRight size={18} />
               الرجوع لكافة البلاغات
@@ -380,10 +380,10 @@ export default function Maintenance() {
               <div>
                 <span className="text-xs font-bold text-slate-400 block mb-1">بيانات العهدة المستهدفة</span>
                 <h3 className="text-lg font-bold text-slate-800">{activeDevice?.name}</h3>
-                <span className="text-xs font-semibold text-slate-500">ID المخصص: {activeDevice?.customId}</span>
+                <span className="text-xs font-semibold text-slate-700">ID المخصص: {activeDevice?.customId}</span>
               </div>
 
-              <div className="border-t border-slate-100 pt-4 space-y-3 text-xs text-slate-600">
+              <div className="border-t border-slate-100 pt-4 space-y-3 text-xs text-slate-800">
                 <div className="flex justify-between">
                   <span>القسم الطبي:</span>
                   <strong className="text-slate-800 font-bold">{activeDept?.name}</strong>
@@ -420,7 +420,7 @@ export default function Maintenance() {
             {/* Technical Reports Panel (Techs & Admins can write / Supervisors can only read) */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2 space-y-6">
               <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <Wrench className="text-blue-600" />
+                <Wrench className="text-blue-800" />
                 تقرير تشخيص وصيانة الجهاز
               </h3>
 
@@ -431,7 +431,7 @@ export default function Maintenance() {
                     <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                       <div>
                         <strong className="text-xs font-bold text-amber-800 block">هل بدأت فحص الجهاز وصيانته؟</strong>
-                        <p className="text-xs text-amber-700 mt-1">اضغط لاستلام الشكوى وتحويلها لقيد الصيانة فوراً لإعلام مشرف القسم.</p>
+                        <p className="text-xs text-amber-900 mt-1">اضغط لاستلام الشكوى وتحويلها لقيد الصيانة فوراً لإعلام مشرف القسم.</p>
                       </div>
                       <button
                         type="button"
@@ -445,7 +445,7 @@ export default function Maintenance() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1.5">أولاً: تقرير مبدأي للصيانة (التشخيص)</label>
+                      <label className="block text-xs font-bold text-slate-800 mb-1.5">أولاً: تقرير مبدأي للصيانة (التشخيص)</label>
                       <textarea
                         value={initialReport}
                         onChange={(e) => setInitialReport(e.target.value)}
@@ -456,7 +456,7 @@ export default function Maintenance() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1.5">ثانياً: طلب القطع اللازمة للإصلاح</label>
+                      <label className="block text-xs font-bold text-slate-800 mb-1.5">ثانياً: طلب القطع اللازمة للإصلاح</label>
                       <textarea
                         value={requiredParts}
                         onChange={(e) => setRequiredParts(e.target.value)}
@@ -468,7 +468,7 @@ export default function Maintenance() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1.5">ثالثاً: التقرير النهائي للإصلاح (الإجراء الفني)</label>
+                    <label className="block text-xs font-bold text-slate-800 mb-1.5">ثالثاً: التقرير النهائي للإصلاح (الإجراء الفني)</label>
                     <textarea
                       value={finalReport}
                       onChange={(e) => setFinalReport(e.target.value)}
@@ -506,21 +506,21 @@ export default function Maintenance() {
                 <div className="space-y-4">
                   <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl">
                     <h4 className="font-bold text-slate-700 text-xs mb-1.5">أولاً: تقرير الصيانة المبدئي والتشخيص</h4>
-                    <p className="text-xs text-slate-600 whitespace-pre-line leading-relaxed">
+                    <p className="text-xs text-slate-800 whitespace-pre-line leading-relaxed">
                       {activeRequest.initialReport || 'بانتظار مباشرة التشخيص الأولي للفحص من الفني...'}
                     </p>
                   </div>
 
                   <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl">
                     <h4 className="font-bold text-slate-700 text-xs mb-1.5">ثانياً: قطع الغيار ومستلزمات الصيانة المطلوبة</h4>
-                    <p className="text-xs text-slate-600 whitespace-pre-line leading-relaxed">
+                    <p className="text-xs text-slate-800 whitespace-pre-line leading-relaxed">
                       {activeRequest.requiredParts || 'لم يتم تدوين مستلزمات إضافية حالياً.'}
                     </p>
                   </div>
 
                   <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl">
                     <h4 className="font-bold text-slate-700 text-xs mb-1.5">ثالثاً: التقرير النهائي للإصلاح والتشغيل الميداني</h4>
-                    <p className="text-xs text-slate-600 whitespace-pre-line leading-relaxed">
+                    <p className="text-xs text-slate-800 whitespace-pre-line leading-relaxed">
                       {activeRequest.finalReport || 'بانتظار إنجاز أعمال الصيانة النهائية من قبل الفني وإصدار التقرير.'}
                     </p>
                   </div>
@@ -537,7 +537,7 @@ export default function Maintenance() {
           <div className="bg-white rounded-3xl p-8 max-w-3xl w-full text-slate-800 relative shadow-2xl space-y-6">
             <button
               onClick={() => setPrintRequest(null)}
-              className="absolute top-6 left-6 text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-100 transition-colors cursor-pointer print:hidden"
+              className="absolute top-6 left-6 text-slate-400 hover:text-slate-800 p-2 rounded-full hover:bg-slate-100 transition-colors cursor-pointer print:hidden"
             >
               <X size={24} />
             </button>
@@ -548,43 +548,43 @@ export default function Maintenance() {
               <h3 className="text-lg font-bold font-sans tracking-wide bg-slate-100 inline-block px-6 py-1.5 rounded-lg border border-slate-200">
                 تقرير فني لصيانة جهاز طبي
               </h3>
-              <p className="text-xs text-slate-500">مستخرج تلقائياً من نظام إدارة العهد والصيانة</p>
+              <p className="text-xs text-slate-700">مستخرج تلقائياً من نظام إدارة العهد والصيانة</p>
             </div>
 
             {/* Report Content Grid */}
             <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-xs">
               <div className="border-b pb-2">
-                <span className="text-slate-500 font-bold block mb-0.5">اسم الجهاز الطبي:</span>
+                <span className="text-slate-700 font-bold block mb-0.5">اسم الجهاز الطبي:</span>
                 <strong className="text-slate-800 text-sm">
                   {devices.find((d) => d.id === printRequest.deviceId)?.name}
                 </strong>
               </div>
               <div className="border-b pb-2">
-                <span className="text-slate-500 font-bold block mb-0.5">الرقم المخصص الموحد (ID):</span>
+                <span className="text-slate-700 font-bold block mb-0.5">الرقم المخصص الموحد (ID):</span>
                 <strong className="text-slate-800 text-sm font-mono">
                   {devices.find((d) => d.id === printRequest.deviceId)?.customId}
                 </strong>
               </div>
               <div className="border-b pb-2">
-                <span className="text-slate-500 font-bold block mb-0.5">القسم الطبي الموطن:</span>
+                <span className="text-slate-700 font-bold block mb-0.5">القسم الطبي الموطن:</span>
                 <strong className="text-slate-800 text-sm">
                   {departments.find((d) => d.id === printRequest.departmentId)?.name}
                 </strong>
               </div>
               <div className="border-b pb-2">
-                <span className="text-slate-500 font-bold block mb-0.5">طراز وموديل الجهاز:</span>
+                <span className="text-slate-700 font-bold block mb-0.5">طراز وموديل الجهاز:</span>
                 <strong className="text-slate-800 text-sm">
                   {devices.find((d) => d.id === printRequest.deviceId)?.model}
                 </strong>
               </div>
               <div className="border-b pb-2">
-                <span className="text-slate-500 font-bold block mb-0.5">الرقم التسلسلي (S/N):</span>
+                <span className="text-slate-700 font-bold block mb-0.5">الرقم التسلسلي (S/N):</span>
                 <strong className="text-slate-800 text-sm font-mono">
                   {devices.find((d) => d.id === printRequest.deviceId)?.serialNumber}
                 </strong>
               </div>
               <div className="border-b pb-2">
-                <span className="text-slate-500 font-bold block mb-0.5">تاريخ تحرير البلاغ:</span>
+                <span className="text-slate-700 font-bold block mb-0.5">تاريخ تحرير البلاغ:</span>
                 <strong className="text-slate-800 text-sm font-mono">{printRequest.date}</strong>
               </div>
             </div>
@@ -621,11 +621,11 @@ export default function Maintenance() {
             {/* Signatures section for filing */}
             <div className="pt-8 border-t border-dashed grid grid-cols-2 text-center text-xs">
               <div>
-                <span className="text-slate-500 font-bold block mb-8">اسم وتوقيع فني الصيانة</span>
+                <span className="text-slate-700 font-bold block mb-8">اسم وتوقيع فني الصيانة</span>
                 <div className="border-b border-slate-400 w-32 mx-auto"></div>
               </div>
               <div>
-                <span className="text-slate-500 font-bold block mb-8">اسم واعتماد رئيس القسم الفني</span>
+                <span className="text-slate-700 font-bold block mb-8">اسم واعتماد رئيس القسم الفني</span>
                 <div className="border-b border-slate-400 w-32 mx-auto"></div>
               </div>
             </div>

@@ -29,6 +29,7 @@ export default function Assets() {
 
   // New Device Form fields
   const [devName, setDevName] = useState('');
+  const [devType, setDevType] = useState('');
   const [devCustomId, setDevCustomId] = useState('');
   const [devCurrentQty, setDevCurrentQty] = useState(1);
   const [devBookQty, setDevBookQty] = useState(1);
@@ -132,6 +133,7 @@ export default function Assets() {
   const openNewDeviceForm = () => {
     setIsEditDevice(false);
     setDevName('');
+    setDevType('');
     setDevCustomId('');
     setDevCurrentQty(1);
     setDevBookQty(1);
@@ -150,6 +152,7 @@ export default function Assets() {
     if (!activeDevice) return;
     setIsEditDevice(true);
     setDevName(activeDevice.name);
+    setDevType(activeDevice.type || '');
     setDevCustomId(activeDevice.customId);
     setDevCurrentQty(activeDevice.currentQty);
     setDevBookQty(activeDevice.bookQty);
@@ -181,6 +184,7 @@ export default function Assets() {
     const deviceData = {
       departmentId: selectedDeptId,
       name: devName.trim(),
+      type: devType.trim(),
       customId: devCustomId.trim(),
       currentQty: Number(devCurrentQty),
       bookQty: Number(devBookQty),
@@ -265,6 +269,34 @@ export default function Assets() {
         const lines = text.split('\n');
         if (lines.length < 2) throw new Error('الملف فارغ أو غير متوافق');
 
+        const clean = (val: string) => val ? val.replace(/^"|"$/g, '').trim() : '';
+        const headers = lines[0].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(h => clean(h).toLowerCase());
+
+        const getIndex = (possibleNames: string[]) => {
+          let idx = headers.findIndex(h => possibleNames.some(name => h === name.toLowerCase()));
+          if (idx === -1) {
+            idx = headers.findIndex(h => possibleNames.some(name => h.includes(name.toLowerCase())));
+          }
+          return idx;
+        };
+
+        const idxDeptName = getIndex(['القسم', 'department']);
+        const idxType = getIndex(['النوع', 'type']);
+        const idxName = getIndex(['اسم الجهاز', 'device name']);
+        const idxCustomId = getIndex(['id', 'code', 'كود', 'device code']);
+        
+        let idxBookQty = getIndex(['الكمية الدفترية', 'الكمية السابقة', 'book qty']);
+        let idxCurrentQty = headers.findIndex(h => h === 'الكمية الحالية' || h === 'الكمية' || h === 'qty' || h === 'current qty');
+        if (idxCurrentQty === -1) idxCurrentQty = getIndex(['الكمية الحالية', 'الكمية']);
+
+        const idxModel = getIndex(['الموديل', 'model']);
+        const idxSerialNumber = getIndex(['الرقم التسلسلي', 'serial number', 'serial']);
+        const idxCompany = getIndex(['الشركة المصنعه', 'الشركة المصنعة', 'manufacturer', 'company']);
+        const idxStatus = getIndex(['حالة الجهاز', 'الحالة', 'status']);
+        const idxCustodian = getIndex(['مستلم العهدة', 'مستلم', 'custodian']);
+        const idxAccessories = getIndex(['التوابع', 'الملحقات', 'توابع', 'accessories']);
+        const idxNotes = getIndex(['ملاحظة', 'ملاحظات', 'notes']);
+
         const importedDevices: Device[] = [];
         const uniqueDepts = new Set<string>();
         
@@ -273,24 +305,24 @@ export default function Assets() {
           const line = lines[i].trim();
           if (!line) continue;
           
-          // Basic split (keeping quotes in mind if possible, or simple split)
           const columns = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-          if (columns.length < 10) continue;
+          
+          const getCol = (idx: number) => idx !== -1 && columns[idx] ? clean(columns[idx]) : '';
 
-          const clean = (val: string) => val ? val.replace(/^"|"$/g, '').trim() : '';
-
-          const deptName = clean(columns[0]);
-          const name = clean(columns[1]);
-          const customId = clean(columns[2]);
-          const currentQty = parseInt(clean(columns[3])) || 0;
-          const bookQty = parseInt(clean(columns[4])) || 0;
-          const model = clean(columns[6]);
-          const serialNumber = clean(columns[7]);
-          const company = clean(columns[8]);
-          const status = (clean(columns[9]) as DeviceStatus) || 'شغال';
-          const custodian = clean(columns[10]);
-          const accessoriesRaw = clean(columns[11]);
-          const notes = clean(columns[12]);
+          const deptName = getCol(idxDeptName);
+          const type = getCol(idxType);
+          const name = getCol(idxName);
+          const customId = getCol(idxCustomId);
+          const currentQty = parseInt(getCol(idxCurrentQty)) || 0;
+          const bookQty = parseInt(getCol(idxBookQty)) || 0;
+          const model = getCol(idxModel);
+          const serialNumber = getCol(idxSerialNumber);
+          const company = getCol(idxCompany);
+          const statusVal = getCol(idxStatus);
+          const status = (statusVal as DeviceStatus) || 'شغال';
+          const custodian = getCol(idxCustodian);
+          const accessoriesRaw = getCol(idxAccessories);
+          const notes = getCol(idxNotes);
 
           if (deptName) uniqueDepts.add(deptName);
 
@@ -298,6 +330,7 @@ export default function Assets() {
             id: `dev-imported-${i}-${Date.now()}`,
             departmentId: deptName, // temporary
             name,
+            type,
             customId,
             currentQty,
             bookQty,
@@ -436,7 +469,7 @@ export default function Assets() {
                   className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-blue-500 hover:shadow-md transition-all cursor-pointer relative group flex flex-col justify-between h-48"
                 >
                   <div>
-                    <h3 className="text-lg font-bold text-slate-800 group-hover:text-blue-600 transition-colors">
+                    <h3 className="text-lg font-bold text-slate-800 group-hover:text-blue-800 transition-colors">
                       {dept.name}
                     </h3>
                     <p className="text-xs text-slate-400 mt-1">العهد والأصول الطبية التابعة</p>
@@ -466,10 +499,10 @@ export default function Assets() {
                 onClick={() => setIsDeptModalOpen(true)}
                 className="bg-dashed border-2 border-slate-300 hover:border-blue-500 rounded-2xl flex flex-col items-center justify-center p-6 h-48 cursor-pointer transition-colors bg-slate-50/50 hover:bg-blue-50/20 group"
               >
-                <div className="bg-slate-200 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600 p-3 rounded-full transition-colors mb-3">
+                <div className="bg-slate-200 text-slate-700 group-hover:bg-blue-100 group-hover:text-blue-800 p-3 rounded-full transition-colors mb-3">
                   <Plus size={24} />
                 </div>
-                <strong className="text-slate-600 group-hover:text-blue-600 transition-colors">إضافة قسم جديد</strong>
+                <strong className="text-slate-800 group-hover:text-blue-800 transition-colors">إضافة قسم جديد</strong>
               </div>
             )}
           </div>
@@ -481,9 +514,9 @@ export default function Assets() {
         <div className="space-y-6 animate-fadeIn">
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-              <span className="text-xs font-bold text-blue-600 uppercase tracking-widest block mb-1">تصفح أصول القسم</span>
+              <span className="text-xs font-bold text-blue-800 uppercase tracking-widest block mb-1">تصفح أصول القسم</span>
               <h2 className="text-2xl font-bold text-slate-800">{activeDept?.name}</h2>
-              <p className="text-slate-500 text-sm mt-1">يوجد {deptDevices.length} أجهزة طبية معرفة للعهدة.</p>
+              <p className="text-slate-700 text-sm mt-1">يوجد {deptDevices.length} أجهزة طبية معرفة للعهدة.</p>
             </div>
 
             {/* Only admins & technicians can add devices */}
@@ -503,7 +536,7 @@ export default function Assets() {
             <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-12 text-center">
               <Package size={48} className="text-slate-300 mx-auto mb-4" />
               <h3 className="font-bold text-slate-700 mb-1">لا توجد أجهزة مسجلة في هذا القسم بعد!</h3>
-              <p className="text-slate-500 text-sm">ابدأ بإدخال أول جهاز للمراقبة الطبية.</p>
+              <p className="text-slate-700 text-sm">ابدأ بإدخال أول جهاز للمراقبة الطبية.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -539,10 +572,10 @@ export default function Assets() {
                   <div className="p-5 flex-1 flex flex-col justify-between">
                     <div>
                       <h4 className="font-bold text-slate-800 line-clamp-1 mb-1">{dev.name}</h4>
-                      <p className="text-slate-500 text-xs font-medium mb-3">موديل: {dev.model || 'غير محدد'}</p>
+                      <p className="text-slate-700 text-xs font-medium mb-3">موديل: {dev.model || 'غير محدد'}</p>
                     </div>
 
-                    <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs text-slate-600">
+                    <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs text-slate-800">
                       <span>الرقم المخصص (ID):</span>
                       <strong className="font-mono text-slate-800 font-bold">{dev.customId}</strong>
                     </div>
@@ -565,7 +598,7 @@ export default function Assets() {
 
               <button
                 onClick={() => { setEditDeptName(activeDept?.name || ''); setIsEditDeptOpen(true); }}
-                className="text-slate-600 hover:bg-slate-100 px-4 py-2.5 rounded-xl transition-all cursor-pointer border border-transparent hover:border-slate-200 text-sm font-bold flex items-center gap-2"
+                className="text-slate-800 hover:bg-slate-100 px-4 py-2.5 rounded-xl transition-all cursor-pointer border border-transparent hover:border-slate-200 text-sm font-bold flex items-center gap-2"
               >
                 <Edit3 size={16} />
                 تعديل اسم القسم
@@ -582,7 +615,7 @@ export default function Assets() {
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
             <button
               onClick={() => setSelectedDeviceId(null)}
-              className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-bold text-sm cursor-pointer"
+              className="flex items-center gap-2 text-slate-700 hover:text-slate-800 font-bold text-sm cursor-pointer"
             >
               <ArrowRight size={18} />
               الرجوع لقائمة الأجهزة
@@ -591,7 +624,7 @@ export default function Assets() {
               {currentUser?.role !== 'supervisor' && (
                 <button
                   onClick={openEditDeviceForm}
-                  className="flex items-center gap-2 bg-blue-50 text-blue-700 hover:bg-blue-100 px-4 py-1.5 rounded-full text-sm font-bold transition-all cursor-pointer"
+                  className="flex items-center gap-2 bg-blue-50 text-blue-900 hover:bg-blue-100 px-4 py-1.5 rounded-full text-sm font-bold transition-all cursor-pointer"
                 >
                   <Edit3 size={16} />
                   تعديل بيانات الجهاز
@@ -658,7 +691,7 @@ export default function Assets() {
                 )}
               </div>
 
-              <div className="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-100 text-xs text-slate-600 space-y-2">
+              <div className="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-100 text-xs text-slate-800 space-y-2">
                 <div className="flex justify-between">
                   <span>الشركة المصنعة:</span>
                   <strong className="text-slate-800 font-bold">{activeDevice.company || 'غير محدد'}</strong>
@@ -673,23 +706,24 @@ export default function Assets() {
             {/* Core Inventory and Qty Details */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6 lg:col-span-2">
               <div>
-                <span className="text-xs font-bold text-blue-600 block mb-1">الرقم التعريفي المخصص (ID): {activeDevice.customId}</span>
+                <span className="text-xs font-bold text-blue-800 block mb-1">الرقم التعريفي المخصص (ID): {activeDevice.customId}</span>
                 <h2 className="text-2xl font-bold text-slate-800 font-sans">{activeDevice.name}</h2>
-                <p className="text-slate-500 mt-1">موديل الجهاز وطرازه: {activeDevice.model}</p>
+                {activeDevice.type && <p className="text-blue-800 font-bold mt-1 text-sm bg-blue-50 inline-block px-2 py-0.5 rounded border border-blue-100">{activeDevice.type}</p>}
+                <p className="text-slate-700 mt-1">موديل الجهاز وطرازه: {activeDevice.model}</p>
               </div>
 
               {/* Inventory details */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-5 rounded-2xl border border-slate-100">
                 <div className="text-center p-3 bg-white rounded-xl shadow-sm border border-slate-100">
-                  <span className="text-xs text-slate-500 font-bold block mb-1">الكمية الحالية المتوفرة</span>
+                  <span className="text-xs text-slate-700 font-bold block mb-1">الكمية الحالية المتوفرة</span>
                   <strong className="text-2xl text-slate-800">{activeDevice.currentQty}</strong>
                 </div>
                 <div className="text-center p-3 bg-white rounded-xl shadow-sm border border-slate-100">
-                  <span className="text-xs text-slate-500 font-bold block mb-1">الكمية الدفترية بالجرد</span>
+                  <span className="text-xs text-slate-700 font-bold block mb-1">الكمية الدفترية بالجرد</span>
                   <strong className="text-2xl text-slate-800">{activeDevice.bookQty}</strong>
                 </div>
                 <div className="text-center p-3 rounded-xl border text-slate-800 bg-amber-50 border-amber-200">
-                  <span className="text-xs text-amber-700 font-bold block mb-1">الفارق بالجرد</span>
+                  <span className="text-xs text-amber-900 font-bold block mb-1">الفارق بالجرد</span>
                   <strong className="text-2xl text-amber-800">{activeDevice.difference}</strong>
                 </div>
               </div>
@@ -697,9 +731,9 @@ export default function Assets() {
               {/* Custodian & Notes */}
               <div className="space-y-4">
                 <div className="flex items-center gap-3 bg-blue-50/50 p-4 rounded-xl border border-blue-100">
-                  <User size={20} className="text-blue-600" />
+                  <User size={20} className="text-blue-800" />
                   <div className="text-right">
-                    <span className="text-xs text-slate-500 block">مستلم العهدة المسؤول:</span>
+                    <span className="text-xs text-slate-700 block">مستلم العهدة المسؤول:</span>
                     <strong className="text-sm text-slate-800 font-bold">{activeDevice.custodian || 'لم يتم تعيين مستلم'}</strong>
                   </div>
                 </div>
@@ -714,14 +748,14 @@ export default function Assets() {
                         </span>
                       ))
                     ) : (
-                      <span className="text-xs text-slate-500">لا توجد ملحقات إضافية مسجلة.</span>
+                      <span className="text-xs text-slate-700">لا توجد ملحقات إضافية مسجلة.</span>
                     )}
                   </div>
                 </div>
 
                 <div>
                   <h4 className="font-bold text-sm text-slate-700 mb-2">ملاحظات إضافية وحالة الفحص</h4>
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-sm text-slate-600 whitespace-pre-line leading-relaxed">
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-sm text-slate-800 whitespace-pre-line leading-relaxed">
                     {activeDevice.notes || 'لا توجد ملاحظات مدونة لهذا الجهاز.'}
                   </div>
                 </div>
@@ -752,7 +786,7 @@ export default function Assets() {
               <AlertOctagon size={24} />
             </div>
             <h3 className="text-xl font-bold text-slate-800 mb-2 text-center">حذف الجهاز نهائياً</h3>
-            <p className="text-slate-600 text-sm text-center mb-6">
+            <p className="text-slate-800 text-sm text-center mb-6">
               هل أنت متأكد من رغبتك في حذف هذا الجهاز؟ سيتم حذف جميع السجلات وبلاغات الأعطال والمتابعة الدورية المرتبطة به. هذا الإجراء لا يمكن التراجع عنه.
             </p>
             <div className="flex gap-3">
@@ -779,14 +813,14 @@ export default function Assets() {
           <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-200 w-full max-w-md text-right relative">
             <button 
               onClick={() => setIsDeptModalOpen(false)} 
-              className="absolute top-4 left-4 text-slate-400 hover:text-slate-600 cursor-pointer"
+              className="absolute top-4 left-4 text-slate-400 hover:text-slate-800 cursor-pointer"
             >
               <X size={20} />
             </button>
             <h3 className="text-lg font-bold text-slate-800 mb-4">إضافة قسم مستشفى جديد</h3>
             <form onSubmit={handleAddDeptSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1.5">اسم القسم الطبي</label>
+                <label className="block text-xs font-bold text-slate-800 mb-1.5">اسم القسم الطبي</label>
                 <input 
                   type="text" 
                   value={newDeptName}
@@ -813,14 +847,14 @@ export default function Assets() {
           <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-200 w-full max-w-md text-right relative">
             <button 
               onClick={() => setIsEditDeptOpen(false)} 
-              className="absolute top-4 left-4 text-slate-400 hover:text-slate-600 cursor-pointer"
+              className="absolute top-4 left-4 text-slate-400 hover:text-slate-800 cursor-pointer"
             >
               <X size={20} />
             </button>
             <h3 className="text-lg font-bold text-slate-800 mb-4">تعديل اسم القسم الطبي</h3>
             <form onSubmit={handleEditDeptSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1.5">اسم القسم الجديد</label>
+                <label className="block text-xs font-bold text-slate-800 mb-1.5">اسم القسم الجديد</label>
                 <input 
                   type="text" 
                   value={editDeptName}
@@ -847,13 +881,13 @@ export default function Assets() {
           <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-4xl p-8 text-right relative my-8 animate-scaleIn">
             <button 
               onClick={() => setIsDeviceFormOpen(false)} 
-              className="absolute top-6 left-6 text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
+              className="absolute top-6 left-6 text-slate-400 hover:text-slate-800 p-2 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
             >
               <X size={24} />
             </button>
 
             <h3 className="text-2xl font-bold text-slate-800 mb-6 font-sans flex items-center gap-3">
-              <div className="bg-blue-100 text-blue-600 p-2 rounded-xl">
+              <div className="bg-blue-100 text-blue-800 p-2 rounded-xl">
                 <Package size={24} />
               </div>
               {isEditDevice ? 'تعديل بيانات الجهاز بالعهد' : 'إضافة جهاز طبي جديد للقسم'}
@@ -863,7 +897,7 @@ export default function Assets() {
               {/* Device Details Columns */}
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1.5">اسم الجهاز الطبي *</label>
+                  <label className="block text-xs font-bold text-slate-800 mb-1.5">اسم الجهاز الطبي *</label>
                   <input 
                     type="text"
                     value={devName}
@@ -875,7 +909,18 @@ export default function Assets() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1.5">رقم الـ ID المخصص للجهاز * (يدخل يدوياً ولا يتكرر)</label>
+                  <label className="block text-xs font-bold text-slate-800 mb-1.5">النوع (Type)</label>
+                  <input 
+                    type="text"
+                    value={devType}
+                    onChange={(e) => setDevType(e.target.value)}
+                    placeholder="مثال: طبي، IT، الخ"
+                    className="w-full px-3 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-800 mb-1.5">رقم الـ ID المخصص للجهاز * (يدخل يدوياً ولا يتكرر)</label>
                   <input 
                     type="text"
                     value={devCustomId}
@@ -888,7 +933,7 @@ export default function Assets() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1.5">الكمية الحالية المتوفرة *</label>
+                    <label className="block text-xs font-bold text-slate-800 mb-1.5">الكمية الحالية المتوفرة *</label>
                     <input 
                       type="number"
                       value={devCurrentQty}
@@ -899,7 +944,7 @@ export default function Assets() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1.5">الكمية الدفترية بالجرد *</label>
+                    <label className="block text-xs font-bold text-slate-800 mb-1.5">الكمية الدفترية بالجرد *</label>
                     <input 
                       type="number"
                       value={devBookQty}
@@ -913,7 +958,7 @@ export default function Assets() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1.5">طراز وموديل الجهاز *</label>
+                    <label className="block text-xs font-bold text-slate-800 mb-1.5">طراز وموديل الجهاز *</label>
                     <input 
                       type="text"
                       value={devModel}
@@ -924,7 +969,7 @@ export default function Assets() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1.5">الرقم التسلسلي للجهاز *</label>
+                    <label className="block text-xs font-bold text-slate-800 mb-1.5">الرقم التسلسلي للجهاز *</label>
                     <input 
                       type="text"
                       value={devSerial}
@@ -937,7 +982,7 @@ export default function Assets() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1.5">اسم الشركة المصنعة *</label>
+                  <label className="block text-xs font-bold text-slate-800 mb-1.5">اسم الشركة المصنعة *</label>
                   <input 
                     type="text"
                     value={devCompany}
@@ -949,7 +994,7 @@ export default function Assets() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1.5">مستلم العهدة المسؤول *</label>
+                  <label className="block text-xs font-bold text-slate-800 mb-1.5">مستلم العهدة المسؤول *</label>
                   <input 
                     type="text"
                     value={devCustodian}
@@ -964,7 +1009,7 @@ export default function Assets() {
               {/* Accessories & Image Upload */}
               <div className="space-y-4 flex flex-col justify-between">
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1.5">حالة تشغيل الجهاز الطبية</label>
+                  <label className="block text-xs font-bold text-slate-800 mb-1.5">حالة تشغيل الجهاز الطبية</label>
                   <select
                     value={devStatus}
                     onChange={(e) => setDevStatus(e.target.value as DeviceStatus)}
@@ -977,7 +1022,7 @@ export default function Assets() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1.5">تحميل أو تصوير صورة الجهاز</label>
+                  <label className="block text-xs font-bold text-slate-800 mb-1.5">تحميل أو تصوير صورة الجهاز</label>
                   <div className="flex gap-4 items-center">
                     <button
                       type="button"
@@ -1010,7 +1055,7 @@ export default function Assets() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1.5">توابع وملحقات الجهاز (Accessories)</label>
+                  <label className="block text-xs font-bold text-slate-800 mb-1.5">توابع وملحقات الجهاز (Accessories)</label>
                   <div className="flex flex-wrap gap-1.5 mb-2 max-h-24 overflow-y-auto border p-2 rounded-xl bg-slate-50/50">
                     {Array.from(new Set([...accessoriesList, ...devSelectedAccessories])).map((acc) => {
                       const selected = devSelectedAccessories.includes(acc);
@@ -1022,7 +1067,7 @@ export default function Assets() {
                           className={`text-xs px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer font-medium ${
                             selected 
                               ? 'bg-blue-600 border-blue-600 text-white font-bold' 
-                              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                              : 'bg-white border-slate-200 text-slate-800 hover:bg-slate-50'
                           }`}
                         >
                           {acc}
@@ -1050,7 +1095,7 @@ export default function Assets() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1.5">ملاحظات الفحص الطبية والمعايرة</label>
+                  <label className="block text-xs font-bold text-slate-800 mb-1.5">ملاحظات الفحص الطبية والمعايرة</label>
                   <textarea 
                     value={devNotes}
                     onChange={(e) => setDevNotes(e.target.value)}
@@ -1070,7 +1115,7 @@ export default function Assets() {
                   <button
                     type="button"
                     onClick={() => setIsDeviceFormOpen(false)}
-                    className="px-5 py-3 border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50 text-sm font-bold cursor-pointer"
+                    className="px-5 py-3 border border-slate-300 rounded-xl text-slate-800 hover:bg-slate-50 text-sm font-bold cursor-pointer"
                   >
                     إلغاء
                   </button>

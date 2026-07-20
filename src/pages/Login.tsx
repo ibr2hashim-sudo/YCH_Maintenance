@@ -29,7 +29,7 @@ export default function Login() {
             <Settings size={36} />
           </div>
           <h1 className="text-2xl font-bold text-slate-800 text-center font-sans">نظام إدارة العهد والصيانة</h1>
-          <p className="text-slate-500 mt-2">تسجيل الدخول للمتابعة</p>
+          <p className="text-slate-700 mt-2">تسجيل الدخول للمتابعة</p>
         </div>
 
         {error && (
@@ -69,29 +69,29 @@ export default function Login() {
               onClick={() => selectDemo('admin')}
               className="w-full flex items-center justify-between bg-white hover:bg-blue-50 px-3 py-2 rounded-lg border border-slate-200 hover:border-blue-300 transition-all text-right cursor-pointer"
             >
-              <strong className="font-mono text-blue-600">admin</strong> 
-              <span className="text-slate-600 text-xs bg-slate-100 px-2 py-1 rounded">المدير (صلاحيات كاملة)</span>
+              <strong className="font-mono text-blue-800">admin</strong> 
+              <span className="text-slate-800 text-xs bg-slate-100 px-2 py-1 rounded">المدير (صلاحيات كاملة)</span>
             </button>
             <button
               onClick={() => selectDemo('tech1')}
               className="w-full flex items-center justify-between bg-white hover:bg-blue-50 px-3 py-2 rounded-lg border border-slate-200 hover:border-blue-300 transition-all text-right cursor-pointer"
             >
-              <strong className="font-mono text-blue-600">tech1</strong> 
-              <span className="text-slate-600 text-xs bg-slate-100 px-2 py-1 rounded">فني صيانة</span>
+              <strong className="font-mono text-blue-800">tech1</strong> 
+              <span className="text-slate-800 text-xs bg-slate-100 px-2 py-1 rounded">فني صيانة</span>
             </button>
             <button
               onClick={() => selectDemo('sup1')}
               className="w-full flex items-center justify-between bg-white hover:bg-blue-50 px-3 py-2 rounded-lg border border-slate-200 hover:border-blue-300 transition-all text-right cursor-pointer"
             >
-              <strong className="font-mono text-blue-600">sup1</strong> 
-              <span className="text-slate-600 text-xs bg-slate-100 px-2 py-1 rounded">مشرف قسم الطوارئ</span>
+              <strong className="font-mono text-blue-800">sup1</strong> 
+              <span className="text-slate-800 text-xs bg-slate-100 px-2 py-1 rounded">مشرف قسم الطوارئ</span>
             </button>
             <button
               onClick={() => selectDemo('sup2')}
               className="w-full flex items-center justify-between bg-white hover:bg-blue-50 px-3 py-2 rounded-lg border border-slate-200 hover:border-blue-300 transition-all text-right cursor-pointer"
             >
-              <strong className="font-mono text-blue-600">sup2</strong> 
-              <span className="text-slate-600 text-xs bg-slate-100 px-2 py-1 rounded">مشرف العناية المركزة</span>
+              <strong className="font-mono text-blue-800">sup2</strong> 
+              <span className="text-slate-800 text-xs bg-slate-100 px-2 py-1 rounded">مشرف العناية المركزة</span>
             </button>
           </ul>
         </div>
