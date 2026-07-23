@@ -3,8 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAppStore } from './store';
+import { initFirestoreSync } from './lib/firestoreSync';
 import Login from './pages/Login';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
@@ -14,6 +16,10 @@ import Tracking from './pages/Tracking';
 
 export default function App() {
   const currentUser = useAppStore((state) => state.currentUser);
+
+  useEffect(() => {
+    initFirestoreSync();
+  }, []);
 
   return (
     <BrowserRouter>

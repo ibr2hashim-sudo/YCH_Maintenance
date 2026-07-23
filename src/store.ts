@@ -1,5 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { db } from './lib/firebase';
+import { sanitizeForFirestore } from './lib/firestoreSync';
 import { User, Department, Device, MaintenanceRequest, MaintenanceTracking } from './types';
 
 interface AppState {
@@ -51,8 +54,8 @@ interface AppState {
 const defaultUsers: User[] = [
   { id: 'u-1', username: 'admin', role: 'admin' },
   { id: 'u-2', username: 'tech1', role: 'tech' },
-  { id: 'u-3', username: 'sup1', role: 'supervisor', departmentId: 'd-1' }, // قسم الطوارئ
-  { id: 'u-4', username: 'sup2', role: 'supervisor', departmentId: 'd-2' }, // قسم العناية المركزة
+  { id: 'u-3', username: 'sup1', role: 'supervisor', departmentId: 'd-1' },
+  { id: 'u-4', username: 'sup2', role: 'supervisor', departmentId: 'd-2' },
 ];
 
 const defaultDepartments: Department[] = [
@@ -69,7 +72,7 @@ const defaultDevices: Device[] = [
     customId: 'ECG-109',
     currentQty: 4,
     bookQty: 5,
-    difference: 1, // bookQty - currentQty
+    difference: 1,
     model: 'Mac 2000',
     serialNumber: 'SN-9831723',
     company: 'GE Healthcare',
@@ -195,35 +198,52 @@ export const useAppStore = create<AppState>()(
       logout: () => set({ currentUser: null }),
 
       // User Actions
-      addUser: (user) => set((state) => ({
-        users: [...state.users, { ...user, id: `u-${Date.now()}` }]
-      })),
+      addUser: (user) => {
+        const newUser = { ...user, id: `u-${Date.now()}` };
+        setDoc(doc(db, 'users', newUser.id), sanitizeForFirestore(newUser));
+        set((state) => ({ users: [...state.users, newUser] }));
+      },
       
-      updateUser: (id, updatedUser) => set((state) => ({
-        users: state.users.map((u) => u.id === id ? { ...u, ...updatedUser } : u),
-        // If updating the active user
-        currentUser: state.currentUser?.id === id ? { ...state.currentUser, ...updatedUser } : state.currentUser
-      })),
+      updateUser: (id, updatedUser) => {
+        const current = get().users.find((u) => u.id === id);
+        if (current) {
+          const merged = { ...current, ...updatedUser };
+          setDoc(doc(db, 'users', id), sanitizeForFirestore(merged));
+        }
+        set((state) => ({
+          users: state.users.map((u) => u.id === id ? { ...u, ...updatedUser } : u),
+          currentUser: state.currentUser?.id === id ? { ...state.currentUser, ...updatedUser } : state.currentUser
+        }));
+      },
 
-      deleteUser: (id) => set((state) => ({
-        users: state.users.filter((u) => u.id !== id),
-        currentUser: state.currentUser?.id === id ? null : state.currentUser
-      })),
+      deleteUser: (id) => {
+        deleteDoc(doc(db, 'users', id));
+        set((state) => ({
+          users: state.users.filter((u) => u.id !== id),
+          currentUser: state.currentUser?.id === id ? null : state.currentUser
+        }));
+      },
 
       // Department Actions
-      addDepartment: (name) => set((state) => ({
-        departments: [...state.departments, { id: `d-${Date.now()}`, name }]
-      })),
+      addDepartment: (name) => {
+        const newDept = { id: `d-${Date.now()}`, name };
+        setDoc(doc(db, 'departments', newDept.id), sanitizeForFirestore(newDept));
+        set((state) => ({ departments: [...state.departments, newDept] }));
+      },
 
-      updateDepartment: (id, name) => set((state) => ({
-        departments: state.departments.map((d) => d.id === id ? { ...d, name } : d)
-      })),
+      updateDepartment: (id, name) => {
+        setDoc(doc(db, 'departments', id), { id, name });
+        set((state) => ({
+          departments: state.departments.map((d) => d.id === id ? { ...d, name } : d)
+        }));
+      },
 
       deleteDepartment: (id) => {
         const hasDevices = get().devices.some((dev) => dev.departmentId === id);
         if (hasDevices) {
           return { success: false, message: 'لا يمكنك مسح القسم بسبب وجود اصول وأجهزة تابعة له' };
         }
+        deleteDoc(doc(db, 'departments', id));
         set((state) => ({
           departments: state.departments.filter((d) => d.id !== id)
         }));
@@ -231,94 +251,148 @@ export const useAppStore = create<AppState>()(
       },
 
       // Device Actions
-      addDevice: (device) => set((state) => {
+      addDevice: (device) => {
         const diff = device.bookQty - device.currentQty;
         const newDevice: Device = {
           ...device,
           id: `dev-${Date.now()}`,
           difference: diff
         };
-        return {
-          devices: [...state.devices, newDevice]
-        };
-      }),
+        setDoc(doc(db, 'devices', newDevice.id), sanitizeForFirestore(newDevice));
+        set((state) => ({ devices: [...state.devices, newDevice] }));
+      },
 
-      updateDevice: (id, updatedFields) => set((state) => ({
-        devices: state.devices.map((dev) => {
-          if (dev.id === id) {
-            const merged = { ...dev, ...updatedFields };
-            merged.difference = merged.bookQty - merged.currentQty;
-            return merged;
-          }
-          return dev;
-        })
-      })),
+      updateDevice: (id, updatedFields) => {
+        const current = get().devices.find((dev) => dev.id === id);
+        if (current) {
+          const merged = { ...current, ...updatedFields };
+          merged.difference = merged.bookQty - merged.currentQty;
+          setDoc(doc(db, 'devices', id), sanitizeForFirestore(merged));
+        }
+        set((state) => ({
+          devices: state.devices.map((dev) => {
+            if (dev.id === id) {
+              const merged = { ...dev, ...updatedFields };
+              merged.difference = merged.bookQty - merged.currentQty;
+              return merged;
+            }
+            return dev;
+          })
+        }));
+      },
 
-      deleteDevice: (id) => set((state) => ({
-        devices: state.devices.filter((dev) => dev.id !== id),
-        requests: state.requests.filter((req) => req.deviceId !== id),
-        trackings: state.trackings.filter((track) => track.deviceId !== id)
-      })),
+      deleteDevice: (id) => {
+        deleteDoc(doc(db, 'devices', id));
+        get().requests.filter(r => r.deviceId === id).forEach(r => deleteDoc(doc(db, 'requests', r.id)));
+        get().trackings.filter(t => t.deviceId === id).forEach(t => deleteDoc(doc(db, 'trackings', t.id)));
+
+        set((state) => ({
+          devices: state.devices.filter((dev) => dev.id !== id),
+          requests: state.requests.filter((req) => req.deviceId !== id),
+          trackings: state.trackings.filter((track) => track.deviceId !== id)
+        }));
+      },
 
       // Maintenance Request Actions
-      addMaintenanceRequest: (req) => set((state) => {
+      addMaintenanceRequest: (req) => {
         const newReq: MaintenanceRequest = {
           ...req,
           id: `req-${Date.now()}`,
           status: 'pending'
         };
-        return {
-          requests: [newReq, ...state.requests]
-        };
-      }),
+        setDoc(doc(db, 'requests', newReq.id), sanitizeForFirestore(newReq));
+        set((state) => ({ requests: [newReq, ...state.requests] }));
+      },
 
-      updateMaintenanceRequest: (id, fields) => set((state) => ({
-        requests: state.requests.map((r) => r.id === id ? { ...r, ...fields } : r)
-      })),
+      updateMaintenanceRequest: (id, fields) => {
+        const current = get().requests.find((r) => r.id === id);
+        if (current) {
+          const merged = { ...current, ...fields };
+          setDoc(doc(db, 'requests', id), sanitizeForFirestore(merged));
+        }
+        set((state) => ({
+          requests: state.requests.map((r) => r.id === id ? { ...r, ...fields } : r)
+        }));
+      },
 
-      deleteMaintenanceRequest: (id) => set((state) => ({
-        requests: state.requests.filter((r) => r.id !== id)
-      })),
+      deleteMaintenanceRequest: (id) => {
+        deleteDoc(doc(db, 'requests', id));
+        set((state) => ({ requests: state.requests.filter((r) => r.id !== id) }));
+      },
 
       // Tracking Actions
-      addTracking: (track) => set((state) => {
+      addTracking: (track) => {
         const newTrack: MaintenanceTracking = {
           ...track,
           id: `t-${Date.now()}`
         };
-        return {
-          trackings: [newTrack, ...state.trackings]
-        };
-      }),
+        setDoc(doc(db, 'trackings', newTrack.id), sanitizeForFirestore(newTrack));
+        set((state) => ({ trackings: [newTrack, ...state.trackings] }));
+      },
 
-      deleteTracking: (id) => set((state) => ({
-        trackings: state.trackings.filter((t) => t.id !== id)
-      })),
+      deleteTracking: (id) => {
+        deleteDoc(doc(db, 'trackings', id));
+        set((state) => ({ trackings: state.trackings.filter((t) => t.id !== id) }));
+      },
 
-      addTrackingCategory: (category) => set((state) => {
-        if (state.trackingCategories.includes(category)) return {};
-        return {
-          trackingCategories: [...state.trackingCategories, category]
-        };
-      }),
+      addTrackingCategory: (category) => {
+        const current = get().trackingCategories;
+        if (current.includes(category)) return;
+        const newCategories = [...current, category];
+        setDoc(doc(db, 'appSettings', 'config'), {
+          oilFilterInterval: get().oilFilterInterval,
+          trackingCategories: newCategories,
+          accessoriesList: get().accessoriesList
+        });
+        set({ trackingCategories: newCategories });
+      },
 
-      setOilFilterInterval: (interval) => set({ oilFilterInterval: interval }),
+      setOilFilterInterval: (interval) => {
+        setDoc(doc(db, 'appSettings', 'config'), {
+          oilFilterInterval: interval,
+          trackingCategories: get().trackingCategories,
+          accessoriesList: get().accessoriesList
+        });
+        set({ oilFilterInterval: interval });
+      },
 
-      addAccessory: (accessory) => set((state) => {
-        if (state.accessoriesList.includes(accessory)) return {};
-        return {
-          accessoriesList: [...state.accessoriesList, accessory]
-        };
-      }),
+      addAccessory: (accessory) => {
+        const current = get().accessoriesList;
+        if (current.includes(accessory)) return;
+        const newList = [...current, accessory];
+        setDoc(doc(db, 'appSettings', 'config'), {
+          oilFilterInterval: get().oilFilterInterval,
+          trackingCategories: get().trackingCategories,
+          accessoriesList: newList
+        });
+        set({ accessoriesList: newList });
+      },
 
       // Import database action
-      importDatabase: (data) => set((state) => ({
-        departments: data.departments || state.departments,
-        devices: data.devices || state.devices,
-        requests: data.requests || state.requests,
-        trackings: data.trackings || state.trackings,
-        users: data.users || state.users,
-      }))
+      importDatabase: (data) => {
+        if (data.departments) {
+          data.departments.forEach(d => setDoc(doc(db, 'departments', d.id), sanitizeForFirestore(d)));
+        }
+        if (data.devices) {
+          data.devices.forEach(dev => setDoc(doc(db, 'devices', dev.id), sanitizeForFirestore(dev)));
+        }
+        if (data.requests) {
+          data.requests.forEach(r => setDoc(doc(db, 'requests', r.id), sanitizeForFirestore(r)));
+        }
+        if (data.trackings) {
+          data.trackings.forEach(t => setDoc(doc(db, 'trackings', t.id), sanitizeForFirestore(t)));
+        }
+        if (data.users) {
+          data.users.forEach(u => setDoc(doc(db, 'users', u.id), sanitizeForFirestore(u)));
+        }
+        set((state) => ({
+          departments: data.departments || state.departments,
+          devices: data.devices || state.devices,
+          requests: data.requests || state.requests,
+          trackings: data.trackings || state.trackings,
+          users: data.users || state.users,
+        }));
+      }
     }),
     {
       name: 'maintenance-storage-v2',

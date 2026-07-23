@@ -1,5 +1,6 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store';
+import { resetFirestoreDatabase } from '../lib/firestoreSync';
 import { LayoutDashboard, Wrench, Settings2, LogOut, ClipboardList, User, ArrowRight, RefreshCw } from 'lucide-react';
 
 export default function Layout() {
@@ -86,10 +87,17 @@ export default function Layout() {
         <div className="p-6 border-t border-slate-200 flex flex-col gap-3">
           {currentUser?.role === 'admin' && (
             <button 
-              onClick={() => {
+              onClick={async () => {
                 if (window.confirm('هل أنت متأكد من مسح جميع البيانات (استعادة ضبط المصنع)؟ لا يمكن التراجع عن هذا الإجراء.')) {
-                  localStorage.clear();
-                  window.location.href = '/';
+                  try {
+                    await resetFirestoreDatabase();
+                    localStorage.clear();
+                    window.location.href = '/';
+                  } catch (e) {
+                    console.error('Failed to reset Firestore:', e);
+                    localStorage.clear();
+                    window.location.href = '/';
+                  }
                 }
               }}
               className="flex items-center justify-center gap-3 px-4 py-3 w-full text-amber-700 font-bold hover:bg-amber-50 rounded-xl transition-colors border border-amber-300 hover:border-amber-500 cursor-pointer"

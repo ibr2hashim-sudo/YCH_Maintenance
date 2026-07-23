@@ -1,0 +1,78 @@
+{
+  "entities": {
+    "users": {
+      "title": "User",
+      "description": "System users and roles",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "role": { "type": "string" },
+        "departmentId": { "type": "string" }
+      },
+      "required": ["username", "role"]
+    },
+    "departments": {
+      "title": "Department",
+      "description": "Hospital departments",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "devices": {
+      "title": "Device",
+      "description": "Medical assets and devices",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "departmentId": { "type": "string" },
+        "name": { "type": "string" },
+        "customId": { "type": "string" },
+        "currentQty": { "type": "number" },
+        "bookQty": { "type": "number" },
+        "difference": { "type": "number" },
+        "model": { "type": "string" },
+        "serialNumber": { "type": "string" },
+        "company": { "type": "string" },
+        "accessories": { "type": "array", "items": { "type": "string" } },
+        "status": { "type": "string" },
+        "custodian": { "type": "string" },
+        "notes": { "type": "string" },
+        "imageUrl": { "type": "string" }
+      },
+      "required": ["name", "departmentId"]
+    },
+    "requests": {
+      "title": "MaintenanceRequest",
+      "description": "Maintenance requests",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "departmentId": { "type": "string" },
+        "deviceId": { "type": "string" },
+        "date": { "type": "string" },
+        "complaint": { "type": "string" },
+        "status": { "type": "string" },
+        "initialReport": { "type": "string" },
+        "requiredParts": { "type": "string" }
+      },
+      "required": ["departmentId", "deviceId", "complaint"]
+    },
+    "trackings": {
+      "title": "MaintenanceTracking",
+      "description": "Periodic maintenance tracking records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "deviceId": { "type": "string" },
+        "type": { "type": "string" },
+        "date": { "type": "string" },
+        "details": { "type": "object" }
+      },
+      "required": ["deviceId", "type", "date"]
+    }
+  }
+}
