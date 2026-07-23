@@ -270,7 +270,15 @@ export default function Assets() {
         if (lines.length < 2) throw new Error('الملف فارغ أو غير متوافق');
 
         const clean = (val: string) => val ? val.replace(/^"|"$/g, '').trim() : '';
-        const headers = lines[0].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(h => clean(h).toLowerCase());
+        
+        let separator: RegExp = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
+        if (lines[0].includes('\t')) {
+          separator = /\t/;
+        } else if (lines[0].includes(';')) {
+          separator = /;(?=(?:(?:[^"]*"){2})*[^"]*$)/;
+        }
+
+        const headers = lines[0].split(separator).map(h => clean(h).toLowerCase());
 
         const getIndex = (possibleNames: string[]) => {
           let idx = headers.findIndex(h => possibleNames.some(name => h === name.toLowerCase()));
@@ -305,7 +313,7 @@ export default function Assets() {
           const line = lines[i].trim();
           if (!line) continue;
           
-          const columns = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+          const columns = line.split(separator);
           
           const getCol = (idx: number) => idx !== -1 && columns[idx] ? clean(columns[idx]) : '';
 
