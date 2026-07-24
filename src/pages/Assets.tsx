@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { useAppStore } from '../store';
+import { compressImage } from '../lib/firestoreSync';
 import { Device, DeviceStatus } from '../types';
 import { 
   Plus, Edit3, Trash2, ArrowRight, Download, Upload, Image as ImageIcon, 
@@ -128,17 +129,13 @@ export default function Assets() {
           return;
         }
 
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const base64String = event.target?.result as string;
-          updateDevice(device.id, { imageUrl: base64String });
-          successCount++;
-          resolve();
-        };
-        reader.onerror = () => {
-          resolve();
-        };
-        reader.readAsDataURL(file);
+        compressImage(file, 800, 0.7)
+          .then((compressedBase64) => {
+            updateDevice(device.id, { imageUrl: compressedBase64 });
+            successCount++;
+            resolve();
+          })
+          .catch(() => resolve());
       });
     };
 
@@ -148,14 +145,15 @@ export default function Assets() {
     });
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setDevImageUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressed = await compressImage(file, 800, 0.7);
+        setDevImageUrl(compressed);
+      } catch (err) {
+        console.error(err);
+      }
     }
   };
 
@@ -797,14 +795,15 @@ export default function Assets() {
                       <input 
                         type="file" 
                         ref={updateImageRef}
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              updateDevice(activeDevice.id, { imageUrl: reader.result as string });
-                            };
-                            reader.readAsDataURL(file);
+                            try {
+                              const compressed = await compressImage(file, 800, 0.7);
+                              updateDevice(activeDevice.id, { imageUrl: compressed });
+                            } catch (err) {
+                              console.error(err);
+                            }
                           }
                         }}
                         accept="image/*" 

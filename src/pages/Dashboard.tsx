@@ -148,91 +148,66 @@ export default function Dashboard() {
           </div>
 
           {/* Quick Guide and Instructions -> Main Navigation Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 p-6 ${currentUser?.role === 'admin' ? 'md:col-span-2' : 'md:col-span-3'}`}>
-              <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                <HelpCircle className="text-blue-800" size={20} />
-                البنود الرئيسية للنظام (اضغط للدخول)
-              </h3>
-              
-              <div className="space-y-4">
-                <div 
-                  onClick={() => navigate('/assets')}
-                  className="p-4 bg-slate-50 hover:bg-blue-50 hover:border-blue-200 rounded-xl border border-slate-100 cursor-pointer transition-all flex items-center justify-between group"
-                >
-                  <div>
-                    <h4 className="font-bold text-slate-800 mb-1 flex items-center gap-2">
-                      1. إدارة العهد والأصول 📦
-                    </h4>
-                    <p className="text-xs text-slate-800 leading-relaxed pr-6">
-                      تصفح الأقسام الطبية، مجموع الأجهزة، إضافة أجهزة ومرفقات جديدة وتحديد حالتها.
-                    </p>
-                  </div>
-                  <ArrowLeft className="text-slate-300 group-hover:text-blue-500 transition-colors" />
-                </div>
-
-                <div 
-                  onClick={() => navigate('/maintenance')}
-                  className="p-4 bg-slate-50 hover:bg-blue-50 hover:border-blue-200 rounded-xl border border-slate-100 cursor-pointer transition-all flex items-center justify-between group"
-                >
-                  <div>
-                    <h4 className="font-bold text-slate-800 mb-1 flex items-center gap-2">
-                      2. طلبات الصيانة وبلاغات الأعطال 🔧
-                    </h4>
-                    <p className="text-xs text-slate-800 leading-relaxed pr-6">
-                      إرسال شكاوى فورية، استلام بلاغات الأعطال، كتابة تقارير الصيانة، وإصدار تقرير مطبوع.
-                    </p>
-                  </div>
-                  <ArrowLeft className="text-slate-300 group-hover:text-blue-500 transition-colors" />
-                </div>
-
-                {currentUser?.role !== 'supervisor' && (
-                  <div 
-                    onClick={() => navigate('/tracking')}
-                    className="p-4 bg-slate-50 hover:bg-blue-50 hover:border-blue-200 rounded-xl border border-slate-100 cursor-pointer transition-all flex items-center justify-between group"
-                  >
-                    <div>
-                      <h4 className="font-bold text-slate-800 mb-1 flex items-center gap-2">
-                        3. متابعة الصيانة الدورية 📅
-                      </h4>
-                      <p className="text-xs text-slate-800 leading-relaxed pr-6">
-                        متابعة دورية مجدولة للفلاتر والزيوت، التكييف، والبطاريات للأجهزة وتدوين سجلاتها.
-                      </p>
-                    </div>
-                    <ArrowLeft className="text-slate-300 group-hover:text-blue-500 transition-colors" />
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Sidebar quick contacts or helpful notes */}
-            {currentUser?.role === 'admin' && (
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <HelpCircle className="text-blue-800" size={20} />
+              البنود الرئيسية للنظام (اضغط للدخول)
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div 
+                onClick={() => navigate('/assets')}
+                className="p-5 bg-slate-50 hover:bg-blue-50 hover:border-blue-200 rounded-xl border border-slate-100 cursor-pointer transition-all flex flex-col justify-between group"
+              >
                 <div>
-                  <h3 className="text-lg font-bold text-slate-800 mb-4">أقسام المستشفى النشطة</h3>
-                  <div className="space-y-2">
-                    {departments.map((dept) => {
-                      const count = devices.filter(d => d.departmentId === dept.id).length;
-                      return (
-                        <div key={dept.id} className="flex justify-between items-center bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-100">
-                          <span className="font-medium text-slate-700 text-sm">{dept.name}</span>
-                          <span className="bg-blue-100 text-blue-800 text-xs px-2.5 py-1 rounded-full font-bold">
-                            {count} أجهزة
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-                
-                <div className="mt-6 pt-6 border-t border-slate-100 bg-slate-50 -mx-6 -mb-6 p-6 rounded-b-2xl">
-                  <h4 className="font-bold text-xs text-slate-700 mb-1">إشعار سريع:</h4>
-                  <p className="text-xs text-slate-800">
-                    تأكد دائماً من معايرة الأجهزة الحساسة وتحديث بيانات العهد الدفترية لضمان تقارير جرد دقيقة.
+                  <h4 className="font-bold text-slate-800 mb-2 flex items-center gap-2">
+                    1. إدارة العهد والأصول 📦
+                  </h4>
+                  <p className="text-xs text-slate-800 leading-relaxed">
+                    تصفح الأقسام الطبية، مجموع الأجهزة، إضافة أجهزة ومرفقات جديدة وتحديد حالتها.
                   </p>
                 </div>
+                <div className="mt-4 flex justify-end">
+                  <ArrowLeft className="text-slate-300 group-hover:text-blue-500 transition-colors" />
+                </div>
               </div>
-            )}
+
+              <div 
+                onClick={() => navigate('/maintenance')}
+                className="p-5 bg-slate-50 hover:bg-blue-50 hover:border-blue-200 rounded-xl border border-slate-100 cursor-pointer transition-all flex flex-col justify-between group"
+              >
+                <div>
+                  <h4 className="font-bold text-slate-800 mb-2 flex items-center gap-2">
+                    2. طلبات الصيانة وبلاغات الأعطال 🔧
+                  </h4>
+                  <p className="text-xs text-slate-800 leading-relaxed">
+                    إرسال شكاوى فورية، استلام بلاغات الأعطال، كتابة تقارير الصيانة، وإصدار تقرير مطبوع.
+                  </p>
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <ArrowLeft className="text-slate-300 group-hover:text-blue-500 transition-colors" />
+                </div>
+              </div>
+
+              {currentUser?.role !== 'supervisor' && (
+                <div 
+                  onClick={() => navigate('/tracking')}
+                  className="p-5 bg-slate-50 hover:bg-blue-50 hover:border-blue-200 rounded-xl border border-slate-100 cursor-pointer transition-all flex flex-col justify-between group"
+                >
+                  <div>
+                    <h4 className="font-bold text-slate-800 mb-2 flex items-center gap-2">
+                      3. متابعة الصيانة الدورية 📅
+                    </h4>
+                    <p className="text-xs text-slate-800 leading-relaxed">
+                      متابعة دورية مجدولة للفلاتر والزيوت، التكييف، والبطاريات للأجهزة وتدوين سجلاتها.
+                    </p>
+                  </div>
+                  <div className="mt-4 flex justify-end">
+                    <ArrowLeft className="text-slate-300 group-hover:text-blue-500 transition-colors" />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </>
       ) : (
