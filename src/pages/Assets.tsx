@@ -48,6 +48,7 @@ export default function Assets() {
   // Refs & Alert States
   const fileInputRef = useRef<HTMLInputElement>(null);
   const csvImportRef = useRef<HTMLInputElement>(null);
+  const bulkImageRef = useRef<HTMLInputElement>(null);
   const updateImageRef = useRef<HTMLInputElement>(null);
   const [alertMsg, setAlertMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -101,6 +102,45 @@ export default function Assets() {
   const showAlert = (type: 'success' | 'error', text: string) => {
     setAlertMsg({ type, text });
     setTimeout(() => setAlertMsg(null), 4000);
+  };
+
+  const handleBulkImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    let successCount = 0;
+    let notFoundCount = 0;
+
+    const processFile = (file: File) => {
+      return new Promise<void>((resolve) => {
+        const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
+        
+        const device = devices.find(d => d.customId.toLowerCase() === nameWithoutExt.toLowerCase());
+        
+        if (!device) {
+          notFoundCount++;
+          resolve();
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const base64String = event.target?.result as string;
+          updateDevice(device.id, { imageUrl: base64String });
+          successCount++;
+          resolve();
+        };
+        reader.onerror = () => {
+          resolve();
+        };
+        reader.readAsDataURL(file);
+      });
+    };
+
+    Promise.all(Array.from(files).map(processFile)).then(() => {
+      showAlert('success', `تم ربط ${successCount} صورة بنجاح. (${notFoundCount} صورة لم تتطابق مع أي كود)`);
+      if (bulkImageRef.current) bulkImageRef.current.value = '';
+    });
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -454,6 +494,22 @@ export default function Assets() {
               ref={csvImportRef} 
               onChange={handleImportCSV} 
               accept=".csv" 
+              className="hidden" 
+            />
+            
+            <button
+              onClick={() => bulkImageRef.current?.click()}
+              className="flex items-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border border-slate-200"
+            >
+              <Image size={14} />
+              استيراد صور مجمعة
+            </button>
+            <input 
+              type="file" 
+              ref={bulkImageRef} 
+              onChange={handleBulkImageUpload} 
+              accept="image/*" 
+              multiple
               className="hidden" 
             />
           </div>

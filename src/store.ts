@@ -396,6 +396,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'maintenance-storage-v2',
+      partialize: (state) => ({ currentUser: state.currentUser }),
     }
   )
 );
