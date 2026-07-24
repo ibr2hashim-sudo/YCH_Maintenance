@@ -1,5 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 import { useAppStore } from '../store';
 import { Device, DeviceStatus } from '../types';
 import { 
@@ -17,6 +19,9 @@ export default function Assets() {
   // Navigation State
   const [selectedDeptId, setSelectedDeptId] = useState<string | null>(null);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
+
+  // Fullscreen Image View
+  const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
 
   // Modal / Form States
   const [isDeptModalOpen, setIsDeptModalOpen] = useState(false);
@@ -261,6 +266,58 @@ export default function Assets() {
     showAlert('success', 'تم حذف الجهاز وسجلاته بنجاح!');
   };
 
+  // FULL DATABASE BACKUP
+  const handleBackupDatabase = () => {
+    const backupData = {
+      departments,
+      devices,
+      users: useAppStore.getState().users,
+      requests: useAppStore.getState().requests,
+      trackings: useAppStore.getState().trackings
+    };
+    const jsonString = JSON.stringify(backupData, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `نسخة_احتياطية_شاملة_${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    showAlert('success', 'تم تصدير النسخة الاحتياطية بنجاح!');
+  };
+
+  // DOWNLOAD IMAGES ZIP
+  const handleDownloadImagesZip = async () => {
+    try {
+      const zip = new JSZip();
+      let hasImages = false;
+      
+      devices.forEach(dev => {
+        if (dev.imageUrl && dev.imageUrl.startsWith('data:image/')) {
+          const base64Data = dev.imageUrl.split(',')[1];
+          const extension = dev.imageUrl.split(';')[0].split('/')[1] || 'png';
+          zip.file(`${dev.customId || dev.id}.${extension}`, base64Data, { base64: true });
+          hasImages = true;
+        } else if (dev.imageUrl) {
+          // If it's a normal URL, we can't easily download it here due to CORS, but we can try to fetch it or skip.
+          // For now, we only zip base64 images that were uploaded by user.
+        }
+      });
+
+      if (!hasImages) {
+        showAlert('error', 'لا توجد صور مخزنة محلياً لتنزيلها.');
+        return;
+      }
+
+      const content = await zip.generateAsync({ type: 'blob' });
+      saveAs(content, `صور_الأجهزة_${new Date().toISOString().split('T')[0]}.zip`);
+      showAlert('success', 'تم تنزيل ملف الصور بنجاح!');
+    } catch (error) {
+      console.error("Error creating zip: ", error);
+      showAlert('error', 'حدث خطأ أثناء تجميع الصور.');
+    }
+  };
+
   // CSV EXPORT (Arabic Compatible UTF-8 BOM)
   const handleExportCSV = () => {
     let csvContent = '\uFEFF'; // Excel Arabic Support BOM
@@ -473,7 +530,7 @@ export default function Assets() {
 
         {/* Admin Import/Export Database Controls */}
         {currentUser?.role === 'admin' && selectedDeptId === null && (
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={handleExportCSV}
               className="flex items-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border border-slate-200"
@@ -501,7 +558,7 @@ export default function Assets() {
               onClick={() => bulkImageRef.current?.click()}
               className="flex items-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border border-slate-200"
             >
-              <Image size={14} />
+              <ImageIcon size={14} />
               استيراد صور مجمعة
             </button>
             <input 
@@ -512,6 +569,22 @@ export default function Assets() {
               multiple
               className="hidden" 
             />
+
+            <button
+              onClick={handleBackupDatabase}
+              className="flex items-center gap-2 bg-blue-50 text-blue-700 hover:bg-blue-100 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border border-blue-200"
+            >
+              <Download size={14} />
+              نسخة احتياطية (JSON)
+            </button>
+
+            <button
+              onClick={handleDownloadImagesZip}
+              className="flex items-center gap-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border border-emerald-200"
+            >
+              <Download size={14} />
+              تحميل الصور (ZIP)
+            </button>
           </div>
         )}
       </div>
@@ -744,8 +817,9 @@ export default function Assets() {
                   <img 
                     src={activeDevice.imageUrl} 
                     alt={activeDevice.name} 
-                    className="w-full h-64 object-cover rounded-xl shadow-inner border border-slate-100"
+                    className="w-full h-64 object-cover rounded-xl shadow-inner border border-slate-100 cursor-zoom-in"
                     referrerPolicy="no-referrer"
+                    onClick={() => setFullscreenImage(activeDevice.imageUrl || null)}
                   />
                 ) : (
                   <div className="w-full h-64 bg-slate-50 border border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-400 gap-2">
@@ -1189,6 +1263,28 @@ export default function Assets() {
           </div>
         </div>
       )}
+
+      {/* Fullscreen Image Viewer */}
+      {fullscreenImage && (
+        <div 
+          className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm cursor-zoom-out"
+          onClick={() => setFullscreenImage(null)}
+        >
+          <img 
+            src={fullscreenImage} 
+            alt="Fullscreen" 
+            className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
+            referrerPolicy="no-referrer"
+          />
+          <button 
+            onClick={(e) => { e.stopPropagation(); setFullscreenImage(null); }}
+            className="absolute top-6 right-6 bg-white/10 text-white hover:bg-white/20 p-2 rounded-full backdrop-blur-md cursor-pointer transition-colors"
+          >
+            <X size={24} />
+          </button>
+        </div>
+      )}
+
     </div>
   );
 }
