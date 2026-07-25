@@ -84,14 +84,14 @@ export default function Login() {
               className="w-full flex items-center justify-between bg-white hover:bg-blue-50 px-3 py-2 rounded-lg border border-slate-200 hover:border-blue-300 transition-all text-right cursor-pointer"
             >
               <strong className="font-mono text-blue-800">sup1</strong> 
-              <span className="text-slate-800 text-xs bg-slate-100 px-2 py-1 rounded">مشرف قسم الطوارئ</span>
+              <span className="text-slate-800 text-xs bg-slate-100 px-2 py-1 rounded">مشرف طبي 1</span>
             </button>
             <button
               onClick={() => selectDemo('sup2')}
               className="w-full flex items-center justify-between bg-white hover:bg-blue-50 px-3 py-2 rounded-lg border border-slate-200 hover:border-blue-300 transition-all text-right cursor-pointer"
             >
               <strong className="font-mono text-blue-800">sup2</strong> 
-              <span className="text-slate-800 text-xs bg-slate-100 px-2 py-1 rounded">مشرف العناية المركزة</span>
+              <span className="text-slate-800 text-xs bg-slate-100 px-2 py-1 rounded">مشرف طبي 2</span>
             </button>
           </ul>
         </div>

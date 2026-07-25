@@ -105,6 +105,11 @@ export default function Assets() {
   const handleAddDeptSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newDeptName.trim()) return;
+    const isDuplicate = departments.some((d) => d.name.trim().toLowerCase() === newDeptName.trim().toLowerCase());
+    if (isDuplicate) {
+      showAlert('error', 'اسم القسم أو العيادة مسجل مسبقاً! لا يمكن تكرار اسم القسم نهائياً.');
+      return;
+    }
     addDepartment(newDeptName.trim(), newDeptParentId);
     setNewDeptName('');
     setNewDeptParentId(undefined);
@@ -115,6 +120,11 @@ export default function Assets() {
   const handleEditDeptSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editDeptName.trim() || !selectedDeptId) return;
+    const isDuplicate = departments.some((d) => d.id !== selectedDeptId && d.name.trim().toLowerCase() === editDeptName.trim().toLowerCase());
+    if (isDuplicate) {
+      showAlert('error', 'اسم القسم أو العيادة مسجل مسبقاً! لا يمكن تكرار اسم القسم نهائياً.');
+      return;
+    }
     updateDepartment(selectedDeptId, editDeptName.trim(), editDeptParentId);
     setIsEditDeptOpen(false);
     showAlert('success', 'تم تحديث بيانات القسم بنجاح!');
@@ -288,26 +298,6 @@ export default function Assets() {
     setSelectedDeviceId(null);
     setShowDeleteConfirm(false);
     showAlert('success', 'تم حذف الجهاز وسجلاته بنجاح!');
-  };
-
-  // FULL DATABASE BACKUP
-  const handleBackupDatabase = () => {
-    const backupData = {
-      departments,
-      devices,
-      users: useAppStore.getState().users,
-      requests: useAppStore.getState().requests,
-      trackings: useAppStore.getState().trackings
-    };
-    const jsonString = JSON.stringify(backupData, null, 2);
-    const blob = new Blob([jsonString], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `نسخة_احتياطية_شاملة_${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-    showAlert('success', 'تم تصدير النسخة الاحتياطية بنجاح!');
   };
 
   // DOWNLOAD IMAGES ZIP
@@ -490,11 +480,7 @@ export default function Assets() {
 
         const getOrCreateDepartment = (name: string, parentId?: string): string => {
           const trimmed = name.trim();
-          let found = updatedDepts.find((d) => d.name === trimmed && d.parentId === parentId);
-          if (!found && !parentId) {
-            // Also check if there is an existing top level dept with same name
-            found = updatedDepts.find((d) => d.name === trimmed && !d.parentId);
-          }
+          let found = updatedDepts.find((d) => d.name.trim().toLowerCase() === trimmed.toLowerCase());
           if (!found) {
             const newId = `d-imp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
             const newDept: Department = { id: newId, name: trimmed, ...(parentId ? { parentId } : {}) };
@@ -672,14 +658,6 @@ export default function Assets() {
               multiple
               className="hidden" 
             />
-
-            <button
-              onClick={handleBackupDatabase}
-              className="flex items-center gap-2 bg-blue-50 text-blue-700 hover:bg-blue-100 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border border-blue-200"
-            >
-              <Download size={14} />
-              نسخة احتياطية (JSON)
-            </button>
 
             <button
               onClick={handleDownloadImagesZip}
