@@ -278,9 +278,14 @@ export default function Dashboard() {
                     required
                   >
                     <option value="">-- اختر القسم --</option>
-                    {departments.map((d) => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))}
+                    {departments.map((d) => {
+                      const parentName = d.parentId ? departments.find((p) => p.id === d.parentId)?.name : null;
+                      return (
+                        <option key={d.id} value={d.id}>
+                          {parentName ? `${d.name} (تابع لـ: ${parentName})` : d.name}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
               )}

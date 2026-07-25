@@ -26,8 +26,8 @@ interface AppState {
   deleteUser: (id: string) => void;
 
   // Department Actions
-  addDepartment: (name: string) => void;
-  updateDepartment: (id: string, name: string) => void;
+  addDepartment: (name: string, parentId?: string) => void;
+  updateDepartment: (id: string, name: string, parentId?: string) => void;
   deleteDepartment: (id: string) => { success: boolean; message: string };
 
   // Device Actions
@@ -225,23 +225,27 @@ export const useAppStore = create<AppState>()(
       },
 
       // Department Actions
-      addDepartment: (name) => {
-        const newDept = { id: `d-${Date.now()}`, name };
+      addDepartment: (name, parentId) => {
+        const newDept: Department = { id: `d-${Date.now()}`, name, ...(parentId ? { parentId } : {}) };
         setDoc(doc(db, 'departments', newDept.id), sanitizeForFirestore(newDept));
         set((state) => ({ departments: [...state.departments, newDept] }));
       },
 
-      updateDepartment: (id, name) => {
-        setDoc(doc(db, 'departments', id), { id, name });
+      updateDepartment: (id, name, parentId) => {
+        const current = get().departments.find((d) => d.id === id);
+        const merged: Department = { ...(current || { id, name }), name, ...(parentId ? { parentId } : {}) };
+        if (!parentId && merged.parentId) delete merged.parentId;
+        setDoc(doc(db, 'departments', id), sanitizeForFirestore(merged));
         set((state) => ({
-          departments: state.departments.map((d) => d.id === id ? { ...d, name } : d)
+          departments: state.departments.map((d) => d.id === id ? merged : d)
         }));
       },
 
       deleteDepartment: (id) => {
         const hasDevices = get().devices.some((dev) => dev.departmentId === id);
-        if (hasDevices) {
-          return { success: false, message: 'لا يمكنك مسح القسم بسبب وجود اصول وأجهزة تابعة له' };
+        const hasChildren = get().departments.some((d) => d.parentId === id);
+        if (hasDevices || hasChildren) {
+          return { success: false, message: 'لا يمكنك مسح القسم بسبب وجود أصول، أجهزة، أو عيادات فرعية تابعة له' };
         }
         deleteDoc(doc(db, 'departments', id));
         set((state) => ({
