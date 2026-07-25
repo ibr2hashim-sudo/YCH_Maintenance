@@ -456,21 +456,54 @@ export default function Assets() {
           }
         });
 
-        // Resolve device department IDs
-        const finalDevices = importedDevices.map((dev) => {
-          const matchedDept = updatedDepts.find((d) => d.name === dev.departmentId);
-          return {
-            ...dev,
-            departmentId: matchedDept ? matchedDept.id : 'd-1'
-          };
+        // Resolve device department IDs and merge/update by customId to prevent duplicate IDs
+        const existingDevicesMap = new Map<string, Device>();
+        devices.forEach(dev => {
+          if (dev.customId) {
+            existingDevicesMap.set(dev.customId.trim().toLowerCase(), dev);
+          } else {
+            existingDevicesMap.set(dev.name.trim().toLowerCase(), dev);
+          }
         });
+
+        let updatedCount = 0;
+        let addedCount = 0;
+
+        importedDevices.forEach((dev) => {
+          const matchedDept = updatedDepts.find((d) => d.name === dev.departmentId);
+          const resolvedDeptId = matchedDept ? matchedDept.id : 'd-1';
+          const key = dev.customId ? dev.customId.trim().toLowerCase() : dev.name.trim().toLowerCase();
+
+          if (existingDevicesMap.has(key)) {
+            // Update existing device while preserving its original ID and image
+            const existingDev = existingDevicesMap.get(key)!;
+            existingDevicesMap.set(key, {
+              ...existingDev,
+              ...dev,
+              id: existingDev.id,
+              departmentId: resolvedDeptId,
+              imageUrl: existingDev.imageUrl || dev.imageUrl
+            });
+            updatedCount++;
+          } else {
+            // Add as new device
+            const newDev: Device = {
+              ...dev,
+              departmentId: resolvedDeptId
+            };
+            existingDevicesMap.set(key, newDev);
+            addedCount++;
+          }
+        });
+
+        const mergedDevices = Array.from(existingDevicesMap.values());
 
         importDatabase({
           departments: updatedDepts,
-          devices: [...devices, ...finalDevices]
+          devices: mergedDevices
         });
 
-        showAlert('success', `تم استيراد ${finalDevices.length} من الأجهزة والعهد بنجاح!`);
+        showAlert('success', `تم استيراد الجرد بنجاح! (إضافة ${addedCount} جديد، تحديث ${updatedCount} موجود)`);
       } catch (err) {
         showAlert('error', 'فشل في قراءة ملف CSV. تأكد من توافق الأعمدة والترميز.');
       }
