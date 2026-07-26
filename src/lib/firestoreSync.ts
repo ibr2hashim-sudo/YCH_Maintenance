@@ -86,89 +86,104 @@ const defaultSettings = {
 
 let initialized = false;
 
+export async function syncAllToCloud() {
+  const state = useAppStore.getState();
+  const promises: Promise<any>[] = [];
+  
+  if (state.users?.length) state.users.forEach(u => promises.push(setDoc(doc(db, 'users', u.id), sanitizeForFirestore(u)).catch(() => {})));
+  if (state.departments?.length) state.departments.forEach(d => promises.push(setDoc(doc(db, 'departments', d.id), sanitizeForFirestore(d)).catch(() => {})));
+  if (state.devices?.length) state.devices.forEach(dev => promises.push(setDoc(doc(db, 'devices', dev.id), sanitizeForFirestore(dev)).catch(() => {})));
+  if (state.requests?.length) state.requests.forEach(req => promises.push(setDoc(doc(db, 'requests', req.id), sanitizeForFirestore(req)).catch(() => {})));
+  if (state.trackings?.length) state.trackings.forEach(tr => promises.push(setDoc(doc(db, 'trackings', tr.id), sanitizeForFirestore(tr)).catch(() => {})));
+  
+  promises.push(setDoc(doc(db, 'appSettings', 'config'), sanitizeForFirestore({
+    oilFilterInterval: state.oilFilterInterval || 5000,
+    trackingCategories: state.trackingCategories || ['تكييف', 'زيوت وفلاتر', 'بطاريات'],
+    accessoriesList: state.accessoriesList || ['ECG Cable', 'SPO2', 'bp Cuff', 'Bottle', '2 Bottle']
+  })).catch(() => {}));
+
+  await Promise.all(promises);
+}
+
 export function initFirestoreSync() {
   if (initialized) return;
   initialized = true;
 
+  const pushLocalMissingToRemote = (remoteItems: any[], localItems: any[], collectionName: string) => {
+    if (!localItems || !Array.isArray(localItems)) return [];
+    const missing = localItems.filter(local => !remoteItems.some(remote => remote.id === local.id));
+    if (missing.length > 0) {
+      missing.forEach(item => {
+        setDoc(doc(db, collectionName, item.id), sanitizeForFirestore(item)).catch(err => {
+          console.warn(`Failed to upload local item to ${collectionName}:`, err);
+        });
+      });
+    }
+    return missing;
+  };
+
   // 1. Sync Users
   onSnapshot(collection(db, 'users'), (snapshot) => {
-    if (!snapshot.empty) {
-      const users = snapshot.docs.map(doc => doc.data() as User);
-      useAppStore.setState({ users });
+    const remoteUsers = snapshot.docs.map(doc => doc.data() as User);
+    const localUsers = useAppStore.getState().users || [];
+    
+    if (remoteUsers.length > 0) {
+      const missing = pushLocalMissingToRemote(remoteUsers, localUsers, 'users');
+      useAppStore.setState({ users: [...remoteUsers, ...missing] });
+    } else if (localUsers.length > 0) {
+      localUsers.forEach(u => setDoc(doc(db, 'users', u.id), sanitizeForFirestore(u)).catch(() => {}));
+      useAppStore.setState({ users: localUsers });
     } else {
-      const currentUsers = useAppStore.getState().users;
-      if (currentUsers && currentUsers.length > 0) {
-        currentUsers.forEach(u => setDoc(doc(db, 'users', u.id), sanitizeForFirestore(u)).catch(() => {}));
-      } else {
-        defaultUsers.forEach(u => setDoc(doc(db, 'users', u.id), sanitizeForFirestore(u)).catch(() => {}));
-        useAppStore.setState({ users: defaultUsers });
-      }
+      defaultUsers.forEach(u => setDoc(doc(db, 'users', u.id), sanitizeForFirestore(u)).catch(() => {}));
+      useAppStore.setState({ users: defaultUsers });
     }
   }, (err) => console.warn('Users snapshot error:', err));
 
   // 2. Sync Departments
   onSnapshot(collection(db, 'departments'), (snapshot) => {
-    if (!snapshot.empty) {
-      const departments = snapshot.docs.map(doc => doc.data() as Department);
-      useAppStore.setState({ departments });
-    } else {
-      const localDepts = useAppStore.getState().departments;
-      if (localDepts && localDepts.length > 0) {
-        localDepts.forEach(d => setDoc(doc(db, 'departments', d.id), sanitizeForFirestore(d)).catch(() => {}));
-      }
-    }
+    const remoteDepts = snapshot.docs.map(doc => doc.data() as Department);
+    const localDepts = useAppStore.getState().departments || [];
+    const missing = pushLocalMissingToRemote(remoteDepts, localDepts, 'departments');
+    useAppStore.setState({ departments: [...remoteDepts, ...missing] });
   }, (err) => console.warn('Departments snapshot error:', err));
 
   // 3. Sync Devices
   onSnapshot(collection(db, 'devices'), (snapshot) => {
-    if (!snapshot.empty) {
-      const devices = snapshot.docs.map(doc => doc.data() as Device);
-      useAppStore.setState({ devices });
-    } else {
-      const localDevices = useAppStore.getState().devices;
-      if (localDevices && localDevices.length > 0) {
-        localDevices.forEach(dev => setDoc(doc(db, 'devices', dev.id), sanitizeForFirestore(dev)).catch(() => {}));
-      }
-    }
+    const remoteDevices = snapshot.docs.map(doc => doc.data() as Device);
+    const localDevices = useAppStore.getState().devices || [];
+    const missing = pushLocalMissingToRemote(remoteDevices, localDevices, 'devices');
+    useAppStore.setState({ devices: [...remoteDevices, ...missing] });
   }, (err) => console.warn('Devices snapshot error:', err));
 
   // 4. Sync Maintenance Requests
   onSnapshot(collection(db, 'requests'), (snapshot) => {
-    if (!snapshot.empty) {
-      const requests = snapshot.docs.map(doc => doc.data() as MaintenanceRequest);
-      useAppStore.setState({ requests });
-    } else {
-      const localRequests = useAppStore.getState().requests;
-      if (localRequests && localRequests.length > 0) {
-        localRequests.forEach(req => setDoc(doc(db, 'requests', req.id), sanitizeForFirestore(req)).catch(() => {}));
-      }
-    }
+    const remoteRequests = snapshot.docs.map(doc => doc.data() as MaintenanceRequest);
+    const localRequests = useAppStore.getState().requests || [];
+    const missing = pushLocalMissingToRemote(remoteRequests, localRequests, 'requests');
+    useAppStore.setState({ requests: [...remoteRequests, ...missing] });
   }, (err) => console.warn('Requests snapshot error:', err));
 
   // 5. Sync Tracking
   onSnapshot(collection(db, 'trackings'), (snapshot) => {
-    if (!snapshot.empty) {
-      const trackings = snapshot.docs.map(doc => doc.data() as MaintenanceTracking);
-      useAppStore.setState({ trackings });
-    } else {
-      const localTrackings = useAppStore.getState().trackings;
-      if (localTrackings && localTrackings.length > 0) {
-        localTrackings.forEach(tr => setDoc(doc(db, 'trackings', tr.id), sanitizeForFirestore(tr)).catch(() => {}));
-      }
-    }
+    const remoteTrackings = snapshot.docs.map(doc => doc.data() as MaintenanceTracking);
+    const localTrackings = useAppStore.getState().trackings || [];
+    const missing = pushLocalMissingToRemote(remoteTrackings, localTrackings, 'trackings');
+    useAppStore.setState({ trackings: [...remoteTrackings, ...missing] });
   }, (err) => console.warn('Trackings snapshot error:', err));
 
   // 6. Sync App Settings
   onSnapshot(doc(db, 'appSettings', 'config'), (snapshot) => {
-    if (snapshot.exists()) {
-      const data = snapshot.data();
-      if (data) {
-        useAppStore.setState({
-          oilFilterInterval: data.oilFilterInterval ?? 5000,
-          trackingCategories: data.trackingCategories ?? ['تكييف', 'زيوت وفلاتر', 'بطاريات'],
-          accessoriesList: data.accessoriesList ?? ['ECG Cable', 'SPO2', 'bp Cuff', 'Bottle', '2 Bottle']
-        });
-      }
+    if (snapshot.exists() && snapshot.data()) {
+      const data = snapshot.data()!;
+      const currentStore = useAppStore.getState();
+      const mergedCategories = Array.from(new Set([...(data.trackingCategories || []), ...(currentStore.trackingCategories || [])]));
+      const mergedAccessories = Array.from(new Set([...(data.accessoriesList || []), ...(currentStore.accessoriesList || [])]));
+      
+      useAppStore.setState({
+        oilFilterInterval: data.oilFilterInterval ?? currentStore.oilFilterInterval ?? 5000,
+        trackingCategories: mergedCategories,
+        accessoriesList: mergedAccessories
+      });
     } else {
       const currentStore = useAppStore.getState();
       setDoc(doc(db, 'appSettings', 'config'), sanitizeForFirestore({
@@ -178,6 +193,11 @@ export function initFirestoreSync() {
       })).catch(() => {});
     }
   }, (err) => console.warn('AppSettings snapshot error:', err));
+
+  // 7. Ensure any locally rehydrated data from localStorage is pushed to Firestore after startup
+  setTimeout(() => {
+    syncAllToCloud();
+  }, 2000);
 }
 
 export async function resetFirestoreDatabase() {
