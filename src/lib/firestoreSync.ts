@@ -90,40 +90,77 @@ export function initFirestoreSync() {
   if (initialized) return;
   initialized = true;
 
+  // 1. Sync Users
   onSnapshot(collection(db, 'users'), (snapshot) => {
-    const users = snapshot.docs.map(doc => doc.data() as User);
-    useAppStore.setState({ users });
+    if (!snapshot.empty) {
+      const users = snapshot.docs.map(doc => doc.data() as User);
+      useAppStore.setState({ users });
+    } else {
+      const currentUsers = useAppStore.getState().users;
+      if (currentUsers && currentUsers.length > 0) {
+        currentUsers.forEach(u => setDoc(doc(db, 'users', u.id), sanitizeForFirestore(u)).catch(() => {}));
+      } else {
+        defaultUsers.forEach(u => setDoc(doc(db, 'users', u.id), sanitizeForFirestore(u)).catch(() => {}));
+        useAppStore.setState({ users: defaultUsers });
+      }
+    }
   }, (err) => console.warn('Users snapshot error:', err));
 
+  // 2. Sync Departments
   onSnapshot(collection(db, 'departments'), (snapshot) => {
-    const departments = snapshot.docs.map(doc => doc.data() as Department);
-    useAppStore.setState({ departments });
+    if (!snapshot.empty) {
+      const departments = snapshot.docs.map(doc => doc.data() as Department);
+      useAppStore.setState({ departments });
+    } else {
+      const localDepts = useAppStore.getState().departments;
+      if (localDepts && localDepts.length > 0) {
+        localDepts.forEach(d => setDoc(doc(db, 'departments', d.id), sanitizeForFirestore(d)).catch(() => {}));
+      }
+    }
   }, (err) => console.warn('Departments snapshot error:', err));
 
+  // 3. Sync Devices
   onSnapshot(collection(db, 'devices'), (snapshot) => {
-    const devices = snapshot.docs.map(doc => doc.data() as Device);
-    useAppStore.setState({ devices });
+    if (!snapshot.empty) {
+      const devices = snapshot.docs.map(doc => doc.data() as Device);
+      useAppStore.setState({ devices });
+    } else {
+      const localDevices = useAppStore.getState().devices;
+      if (localDevices && localDevices.length > 0) {
+        localDevices.forEach(dev => setDoc(doc(db, 'devices', dev.id), sanitizeForFirestore(dev)).catch(() => {}));
+      }
+    }
   }, (err) => console.warn('Devices snapshot error:', err));
 
+  // 4. Sync Maintenance Requests
   onSnapshot(collection(db, 'requests'), (snapshot) => {
-    const requests = snapshot.docs.map(doc => doc.data() as MaintenanceRequest);
-    useAppStore.setState({ requests });
+    if (!snapshot.empty) {
+      const requests = snapshot.docs.map(doc => doc.data() as MaintenanceRequest);
+      useAppStore.setState({ requests });
+    } else {
+      const localRequests = useAppStore.getState().requests;
+      if (localRequests && localRequests.length > 0) {
+        localRequests.forEach(req => setDoc(doc(db, 'requests', req.id), sanitizeForFirestore(req)).catch(() => {}));
+      }
+    }
   }, (err) => console.warn('Requests snapshot error:', err));
 
+  // 5. Sync Tracking
   onSnapshot(collection(db, 'trackings'), (snapshot) => {
-    const trackings = snapshot.docs.map(doc => doc.data() as MaintenanceTracking);
-    useAppStore.setState({ trackings });
+    if (!snapshot.empty) {
+      const trackings = snapshot.docs.map(doc => doc.data() as MaintenanceTracking);
+      useAppStore.setState({ trackings });
+    } else {
+      const localTrackings = useAppStore.getState().trackings;
+      if (localTrackings && localTrackings.length > 0) {
+        localTrackings.forEach(tr => setDoc(doc(db, 'trackings', tr.id), sanitizeForFirestore(tr)).catch(() => {}));
+      }
+    }
   }, (err) => console.warn('Trackings snapshot error:', err));
 
+  // 6. Sync App Settings
   onSnapshot(doc(db, 'appSettings', 'config'), (snapshot) => {
-    if (!snapshot.exists()) {
-      defaultUsers.forEach(u => setDoc(doc(db, 'users', u.id), sanitizeForFirestore(u)).catch(() => {}));
-      defaultDepartments.forEach(d => setDoc(doc(db, 'departments', d.id), sanitizeForFirestore(d)).catch(() => {}));
-      defaultDevices.forEach(dev => setDoc(doc(db, 'devices', dev.id), sanitizeForFirestore(dev)).catch(() => {}));
-      defaultRequests.forEach(r => setDoc(doc(db, 'requests', r.id), sanitizeForFirestore(r)).catch(() => {}));
-      defaultTrackings.forEach(t => setDoc(doc(db, 'trackings', t.id), sanitizeForFirestore(t)).catch(() => {}));
-      setDoc(doc(db, 'appSettings', 'config'), sanitizeForFirestore(defaultSettings)).catch(() => {});
-    } else {
+    if (snapshot.exists()) {
       const data = snapshot.data();
       if (data) {
         useAppStore.setState({
@@ -132,6 +169,13 @@ export function initFirestoreSync() {
           accessoriesList: data.accessoriesList ?? ['ECG Cable', 'SPO2', 'bp Cuff', 'Bottle', '2 Bottle']
         });
       }
+    } else {
+      const currentStore = useAppStore.getState();
+      setDoc(doc(db, 'appSettings', 'config'), sanitizeForFirestore({
+        oilFilterInterval: currentStore.oilFilterInterval || 5000,
+        trackingCategories: currentStore.trackingCategories || ['تكييف', 'زيوت وفلاتر', 'بطاريات'],
+        accessoriesList: currentStore.accessoriesList || ['ECG Cable', 'SPO2', 'bp Cuff', 'Bottle', '2 Bottle']
+      })).catch(() => {});
     }
   }, (err) => console.warn('AppSettings snapshot error:', err));
 }
