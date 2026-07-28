@@ -334,7 +334,17 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'maintenance-cloud-auth-v1',
-      partialize: (state) => ({ currentUser: state.currentUser }),
+      partialize: (state) => ({
+        currentUser: state.currentUser,
+        users: state.users,
+        departments: state.departments,
+        devices: state.devices,
+        requests: state.requests,
+        trackings: state.trackings,
+        oilFilterInterval: state.oilFilterInterval,
+        trackingCategories: state.trackingCategories,
+        accessoriesList: state.accessoriesList,
+      }),
     }
   )
 );
