@@ -4,15 +4,16 @@ import { Settings, AlertTriangle } from 'lucide-react';
 
 export default function Login() {
   const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const login = useAppStore(state => state.login);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const success = login(username.trim());
+    const success = login(username.trim(), password);
     if (!success) {
-      setError('اسم المستخدم غير صحيح! الرجاء المحاولة مرة أخرى أو استخدام حساب تجريبي.');
+      setError('اسم المستخدم أو كلمة المرور غير صحيحة!');
     }
   };
 
@@ -51,6 +52,17 @@ export default function Login() {
               required
             />
           </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">كلمة المرور</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-right font-medium"
+              placeholder="أدخل كلمة المرور"
+              required
+            />
+          </div>
           
           <button
             type="submit"
@@ -59,42 +71,6 @@ export default function Login() {
             دخول للنظام
           </button>
         </form>
-        
-        <div className="mt-8 p-5 bg-blue-50/50 rounded-xl text-sm text-blue-900 border border-blue-100">
-          <p className="font-bold mb-3 flex items-center gap-2 text-blue-800">
-            💡 اضغط لتسجيل الدخول السريع:
-          </p>
-          <ul className="space-y-2">
-            <button
-              onClick={() => selectDemo('admin')}
-              className="w-full flex items-center justify-between bg-white hover:bg-blue-50 px-3 py-2 rounded-lg border border-slate-200 hover:border-blue-300 transition-all text-right cursor-pointer"
-            >
-              <strong className="font-mono text-blue-800">admin</strong> 
-              <span className="text-slate-800 text-xs bg-slate-100 px-2 py-1 rounded">المدير (صلاحيات كاملة)</span>
-            </button>
-            <button
-              onClick={() => selectDemo('tech1')}
-              className="w-full flex items-center justify-between bg-white hover:bg-blue-50 px-3 py-2 rounded-lg border border-slate-200 hover:border-blue-300 transition-all text-right cursor-pointer"
-            >
-              <strong className="font-mono text-blue-800">tech1</strong> 
-              <span className="text-slate-800 text-xs bg-slate-100 px-2 py-1 rounded">فني صيانة</span>
-            </button>
-            <button
-              onClick={() => selectDemo('sup1')}
-              className="w-full flex items-center justify-between bg-white hover:bg-blue-50 px-3 py-2 rounded-lg border border-slate-200 hover:border-blue-300 transition-all text-right cursor-pointer"
-            >
-              <strong className="font-mono text-blue-800">sup1</strong> 
-              <span className="text-slate-800 text-xs bg-slate-100 px-2 py-1 rounded">مشرف طبي 1</span>
-            </button>
-            <button
-              onClick={() => selectDemo('sup2')}
-              className="w-full flex items-center justify-between bg-white hover:bg-blue-50 px-3 py-2 rounded-lg border border-slate-200 hover:border-blue-300 transition-all text-right cursor-pointer"
-            >
-              <strong className="font-mono text-blue-800">sup2</strong> 
-              <span className="text-slate-800 text-xs bg-slate-100 px-2 py-1 rounded">مشرف طبي 2</span>
-            </button>
-          </ul>
-        </div>
       </div>
     </div>
   );

@@ -17,7 +17,7 @@ interface AppState {
   accessoriesList: string[];
   
   // Auth Actions
-  login: (username: string) => boolean;
+  login: (username: string, password?: string) => boolean;
   logout: () => void;
   
   // User Actions
@@ -52,10 +52,10 @@ interface AppState {
 }
 
 const defaultUsers: User[] = [
-  { id: 'u-1', username: 'admin', role: 'admin' },
-  { id: 'u-2', username: 'tech1', role: 'tech' },
-  { id: 'u-3', username: 'sup1', role: 'supervisor' },
-  { id: 'u-4', username: 'sup2', role: 'supervisor' },
+  { id: 'u-1', username: 'admin', password: '123', role: 'admin' },
+  { id: 'u-2', username: 'tech1', password: '123', role: 'tech' },
+  { id: 'u-3', username: 'sup1', password: '123', role: 'supervisor' },
+  { id: 'u-4', username: 'sup2', password: '123', role: 'supervisor' },
 ];
 
 const defaultDepartments: Department[] = [];
@@ -76,9 +76,13 @@ export const useAppStore = create<AppState>()(
       trackingCategories: ['تكييف', 'زيوت وفلاتر', 'بطاريات'],
       accessoriesList: ['ECG Cable', 'SPO2', 'bp Cuff', 'Bottle', '2 Bottle'],
 
-      login: (username) => {
+      login: (username, password) => {
         const found = get().users.find((u) => u.username.toLowerCase() === username.toLowerCase());
         if (found) {
+          // If the user has a password in DB, check it.
+          if (found.password && found.password !== password) {
+            return false;
+          }
           set({ currentUser: found });
           return true;
         }
