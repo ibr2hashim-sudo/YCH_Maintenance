@@ -13,7 +13,9 @@ import { User, Department, Device, MaintenanceRequest, MaintenanceTracking } fro
 
 export function sanitizeForFirestore(obj: any): any {
   if (obj === null || obj === undefined) return null;
+  if (typeof obj === 'function' || typeof obj === 'symbol') return null;
   if (typeof obj !== 'object') return obj;
+  if (obj instanceof Date) return obj.toISOString();
   if (Array.isArray(obj)) {
     return obj
       .map(item => (item === undefined ? null : sanitizeForFirestore(item)))
@@ -22,7 +24,7 @@ export function sanitizeForFirestore(obj: any): any {
   const result: Record<string, any> = {};
   for (const key of Object.keys(obj)) {
     const val = obj[key];
-    if (val !== undefined) {
+    if (val !== undefined && typeof val !== 'function') {
       result[key] = sanitizeForFirestore(val);
     }
   }
@@ -99,7 +101,7 @@ export function initFirestoreSync() {
   // 1. Sync Users directly from Firestore
   onSnapshot(collection(db, 'users'), (snapshot) => {
     if (!snapshot.empty) {
-      const remoteUsers = snapshot.docs.map(doc => doc.data() as User);
+      const remoteUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
       useAppStore.setState({ users: remoteUsers });
     } else {
       const localUsers = useAppStore.getState().users;
@@ -115,7 +117,7 @@ export function initFirestoreSync() {
   // 2. Sync Departments directly from Firestore
   onSnapshot(collection(db, 'departments'), (snapshot) => {
     if (!snapshot.empty) {
-      const remoteDepts = snapshot.docs.map(doc => doc.data() as Department);
+      const remoteDepts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Department));
       useAppStore.setState({ departments: remoteDepts });
     } else {
       const localDepts = useAppStore.getState().departments;
@@ -128,7 +130,7 @@ export function initFirestoreSync() {
   // 3. Sync Devices directly from Firestore
   onSnapshot(collection(db, 'devices'), (snapshot) => {
     if (!snapshot.empty) {
-      const remoteDevices = snapshot.docs.map(doc => doc.data() as Device);
+      const remoteDevices = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Device));
       useAppStore.setState({ devices: remoteDevices });
     } else {
       const localDevices = useAppStore.getState().devices;
@@ -141,7 +143,7 @@ export function initFirestoreSync() {
   // 4. Sync Maintenance Requests directly from Firestore
   onSnapshot(collection(db, 'requests'), (snapshot) => {
     if (!snapshot.empty) {
-      const remoteRequests = snapshot.docs.map(doc => doc.data() as MaintenanceRequest);
+      const remoteRequests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MaintenanceRequest));
       useAppStore.setState({ requests: remoteRequests });
     } else {
       const localRequests = useAppStore.getState().requests;
@@ -154,7 +156,7 @@ export function initFirestoreSync() {
   // 5. Sync Tracking directly from Firestore
   onSnapshot(collection(db, 'trackings'), (snapshot) => {
     if (!snapshot.empty) {
-      const remoteTrackings = snapshot.docs.map(doc => doc.data() as MaintenanceTracking);
+      const remoteTrackings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MaintenanceTracking));
       useAppStore.setState({ trackings: remoteTrackings });
     } else {
       const localTrackings = useAppStore.getState().trackings;

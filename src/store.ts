@@ -63,6 +63,8 @@ const defaultDevices: Device[] = [];
 const defaultRequests: MaintenanceRequest[] = [];
 const defaultTrackings: MaintenanceTracking[] = [];
 
+const getDocId = (id: string) => String(id || '').replace(/\//g, '_');
+
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
@@ -94,7 +96,7 @@ export const useAppStore = create<AppState>()(
       // User Actions
       addUser: (user) => {
         const newUser = { ...user, id: `u-${Date.now()}` };
-        setDoc(doc(db, 'users', newUser.id), sanitizeForFirestore(newUser));
+        setDoc(doc(db, 'users', getDocId(newUser.id)), sanitizeForFirestore(newUser));
         set((state) => ({ users: [...state.users, newUser] }));
       },
       
@@ -102,7 +104,7 @@ export const useAppStore = create<AppState>()(
         const current = get().users.find((u) => u.id === id);
         if (current) {
           const merged = { ...current, ...updatedUser };
-          setDoc(doc(db, 'users', id), sanitizeForFirestore(merged));
+          setDoc(doc(db, 'users', getDocId(id)), sanitizeForFirestore(merged));
         }
         set((state) => ({
           users: state.users.map((u) => u.id === id ? { ...u, ...updatedUser } : u),
@@ -111,7 +113,7 @@ export const useAppStore = create<AppState>()(
       },
 
       deleteUser: (id) => {
-        deleteDoc(doc(db, 'users', id));
+        deleteDoc(doc(db, 'users', getDocId(id)));
         set((state) => ({
           users: state.users.filter((u) => u.id !== id),
           currentUser: state.currentUser?.id === id ? null : state.currentUser
@@ -126,7 +128,7 @@ export const useAppStore = create<AppState>()(
           return;
         }
         const newDept: Department = { id: `d-${Date.now()}`, name: name.trim(), ...(parentId ? { parentId } : {}) };
-        setDoc(doc(db, 'departments', newDept.id), sanitizeForFirestore(newDept));
+        setDoc(doc(db, 'departments', getDocId(newDept.id)), sanitizeForFirestore(newDept));
         set((state) => ({ departments: [...state.departments, newDept] }));
       },
 
@@ -139,7 +141,7 @@ export const useAppStore = create<AppState>()(
         const current = get().departments.find((d) => d.id === id);
         const merged: Department = { ...(current || { id, name: name.trim() }), name: name.trim(), ...(parentId ? { parentId } : {}) };
         if (!parentId && merged.parentId) delete merged.parentId;
-        setDoc(doc(db, 'departments', id), sanitizeForFirestore(merged));
+        setDoc(doc(db, 'departments', getDocId(id)), sanitizeForFirestore(merged));
         set((state) => ({
           departments: state.departments.map((d) => d.id === id ? merged : d)
         }));
@@ -151,7 +153,7 @@ export const useAppStore = create<AppState>()(
         if (hasDevices || hasChildren) {
           return { success: false, message: 'لا يمكنك مسح القسم بسبب وجود أصول، أجهزة، أو عيادات فرعية تابعة له' };
         }
-        deleteDoc(doc(db, 'departments', id));
+        deleteDoc(doc(db, 'departments', getDocId(id)));
         set((state) => ({
           departments: state.departments.filter((d) => d.id !== id)
         }));
@@ -166,7 +168,7 @@ export const useAppStore = create<AppState>()(
           id: `dev-${Date.now()}`,
           difference: diff
         };
-        setDoc(doc(db, 'devices', newDevice.id), sanitizeForFirestore(newDevice));
+        setDoc(doc(db, 'devices', getDocId(newDevice.id)), sanitizeForFirestore(newDevice));
         set((state) => ({ devices: [...state.devices, newDevice] }));
       },
 
@@ -175,7 +177,7 @@ export const useAppStore = create<AppState>()(
         if (current) {
           const merged = { ...current, ...updatedFields };
           merged.difference = merged.bookQty - merged.currentQty;
-          setDoc(doc(db, 'devices', id), sanitizeForFirestore(merged));
+          setDoc(doc(db, 'devices', getDocId(id)), sanitizeForFirestore(merged));
         }
         set((state) => ({
           devices: state.devices.map((dev) => {
@@ -190,9 +192,9 @@ export const useAppStore = create<AppState>()(
       },
 
       deleteDevice: (id) => {
-        deleteDoc(doc(db, 'devices', id));
-        get().requests.filter(r => r.deviceId === id).forEach(r => deleteDoc(doc(db, 'requests', r.id)));
-        get().trackings.filter(t => t.deviceId === id).forEach(t => deleteDoc(doc(db, 'trackings', t.id)));
+        deleteDoc(doc(db, 'devices', getDocId(id)));
+        get().requests.filter(r => r.deviceId === id).forEach(r => deleteDoc(doc(db, 'requests', getDocId(r.id))));
+        get().trackings.filter(t => t.deviceId === id).forEach(t => deleteDoc(doc(db, 'trackings', getDocId(t.id))));
 
         set((state) => ({
           devices: state.devices.filter((dev) => dev.id !== id),
@@ -208,7 +210,7 @@ export const useAppStore = create<AppState>()(
           id: `req-${Date.now()}`,
           status: 'pending'
         };
-        setDoc(doc(db, 'requests', newReq.id), sanitizeForFirestore(newReq));
+        setDoc(doc(db, 'requests', getDocId(newReq.id)), sanitizeForFirestore(newReq));
         set((state) => ({ requests: [newReq, ...state.requests] }));
       },
 
@@ -216,7 +218,7 @@ export const useAppStore = create<AppState>()(
         const current = get().requests.find((r) => r.id === id);
         if (current) {
           const merged = { ...current, ...fields };
-          setDoc(doc(db, 'requests', id), sanitizeForFirestore(merged));
+          setDoc(doc(db, 'requests', getDocId(id)), sanitizeForFirestore(merged));
         }
         set((state) => ({
           requests: state.requests.map((r) => r.id === id ? { ...r, ...fields } : r)
@@ -224,7 +226,7 @@ export const useAppStore = create<AppState>()(
       },
 
       deleteMaintenanceRequest: (id) => {
-        deleteDoc(doc(db, 'requests', id));
+        deleteDoc(doc(db, 'requests', getDocId(id)));
         set((state) => ({ requests: state.requests.filter((r) => r.id !== id) }));
       },
 
@@ -234,12 +236,12 @@ export const useAppStore = create<AppState>()(
           ...track,
           id: `t-${Date.now()}`
         };
-        setDoc(doc(db, 'trackings', newTrack.id), sanitizeForFirestore(newTrack));
+        setDoc(doc(db, 'trackings', getDocId(newTrack.id)), sanitizeForFirestore(newTrack));
         set((state) => ({ trackings: [newTrack, ...state.trackings] }));
       },
 
       deleteTracking: (id) => {
-        deleteDoc(doc(db, 'trackings', id));
+        deleteDoc(doc(db, 'trackings', getDocId(id)));
         set((state) => ({ trackings: state.trackings.filter((t) => t.id !== id) }));
       },
 
@@ -300,14 +302,14 @@ export const useAppStore = create<AppState>()(
           for (const col of collections) {
             if (col.items && Array.isArray(col.items)) {
               const items = col.items;
-              const BATCH_SIZE = 400; // Firestore limit is 500 ops per batch
+              const BATCH_SIZE = 100;
               for (let i = 0; i < items.length; i += BATCH_SIZE) {
                 const chunk = items.slice(i, i + BATCH_SIZE);
                 const batch = writeBatch(db);
                 let addedCount = 0;
                 for (const item of chunk) {
                   if (!item || !item.id) continue;
-                  const docId = String(item.id).replace(/\//g, '_');
+                  const docId = getDocId(item.id);
                   const cleanItem = sanitizeForFirestore(item);
                   batch.set(doc(db, col.name, docId), cleanItem);
                   addedCount++;
@@ -324,7 +326,7 @@ export const useAppStore = create<AppState>()(
             if (col.items && Array.isArray(col.items)) {
               for (const item of col.items) {
                 if (!item || !item.id) continue;
-                const docId = String(item.id).replace(/\//g, '_');
+                const docId = getDocId(item.id);
                 setDoc(doc(db, col.name, docId), sanitizeForFirestore(item)).catch((e) => console.error(e));
               }
             }
