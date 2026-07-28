@@ -286,33 +286,23 @@ export const useAppStore = create<AppState>()(
           { name: 'users', items: data.users },
         ];
 
-        try {
-          let batch = writeBatch(db);
-          let count = 0;
-
-          for (const col of collections) {
-            if (col.items && Array.isArray(col.items)) {
-              for (const item of col.items) {
-                if (!item || !item.id) continue;
-                const cleanItem = sanitizeForFirestore(item);
-                const docRef = doc(db, col.name, item.id);
-                batch.set(docRef, cleanItem);
-                count++;
-
-                if (count >= 400) {
-                  await batch.commit();
-                  batch = writeBatch(db);
-                  count = 0;
-                }
-              }
+        for (const col of collections) {
+          if (col.items && Array.isArray(col.items)) {
+            const items = col.items;
+            const CHUNK_SIZE = 30;
+            for (let i = 0; i < items.length; i += CHUNK_SIZE) {
+              const chunk = items.slice(i, i + CHUNK_SIZE);
+              await Promise.all(
+                chunk.map((item) => {
+                  if (!item || !item.id) return Promise.resolve();
+                  const cleanItem = sanitizeForFirestore(item);
+                  return setDoc(doc(db, col.name, item.id), cleanItem).catch((err) => {
+                    console.error(`Error saving ${col.name}/${item.id}:`, err);
+                  });
+                })
+              );
             }
           }
-
-          if (count > 0) {
-            await batch.commit();
-          }
-        } catch (err) {
-          console.error('Failed to commit imported data to Firestore:', err);
         }
 
         set((state) => ({
@@ -322,7 +312,7 @@ export const useAppStore = create<AppState>()(
           trackings: data.trackings || state.trackings,
           users: data.users || state.users,
         }));
-      }
+      },
     }),
     {
       name: 'maintenance-cloud-auth-v1',
