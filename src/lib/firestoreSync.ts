@@ -11,19 +11,22 @@ import { db } from './firebase';
 import { useAppStore } from '../store';
 import { User, Department, Device, MaintenanceRequest, MaintenanceTracking } from '../types';
 
-export function sanitizeForFirestore<T extends Record<string, any>>(obj: T): T {
+export function sanitizeForFirestore(obj: any): any {
+  if (obj === null || obj === undefined) return null;
+  if (typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) {
+    return obj
+      .map(item => (item === undefined ? null : sanitizeForFirestore(item)))
+      .filter(item => item !== undefined);
+  }
   const result: Record<string, any> = {};
   for (const key of Object.keys(obj)) {
     const val = obj[key];
     if (val !== undefined) {
-      if (val && typeof val === 'object' && !Array.isArray(val)) {
-        result[key] = sanitizeForFirestore(val);
-      } else {
-        result[key] = val;
-      }
+      result[key] = sanitizeForFirestore(val);
     }
   }
-  return result as T;
+  return result;
 }
 
 export function compressImage(file: File, maxDimension = 800, quality = 0.7): Promise<string> {

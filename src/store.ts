@@ -278,6 +278,16 @@ export const useAppStore = create<AppState>()(
 
       // Import database action
       importDatabase: async (data) => {
+        // 1. Update Zustand store IMMEDIATELY so UI updates instantly
+        set((state) => ({
+          departments: data.departments || state.departments,
+          devices: data.devices || state.devices,
+          requests: data.requests || state.requests,
+          trackings: data.trackings || state.trackings,
+          users: data.users || state.users,
+        }));
+
+        // 2. Sync to Firestore in background using writeBatch
         const collections: Array<{ name: string; items?: any[] }> = [
           { name: 'departments', items: data.departments },
           { name: 'devices', items: data.devices },
@@ -286,32 +296,40 @@ export const useAppStore = create<AppState>()(
           { name: 'users', items: data.users },
         ];
 
-        for (const col of collections) {
-          if (col.items && Array.isArray(col.items)) {
-            const items = col.items;
-            const CHUNK_SIZE = 30;
-            for (let i = 0; i < items.length; i += CHUNK_SIZE) {
-              const chunk = items.slice(i, i + CHUNK_SIZE);
-              await Promise.all(
-                chunk.map((item) => {
-                  if (!item || !item.id) return Promise.resolve();
+        try {
+          for (const col of collections) {
+            if (col.items && Array.isArray(col.items)) {
+              const items = col.items;
+              const BATCH_SIZE = 400; // Firestore limit is 500 ops per batch
+              for (let i = 0; i < items.length; i += BATCH_SIZE) {
+                const chunk = items.slice(i, i + BATCH_SIZE);
+                const batch = writeBatch(db);
+                let addedCount = 0;
+                for (const item of chunk) {
+                  if (!item || !item.id) continue;
+                  const docId = String(item.id).replace(/\//g, '_');
                   const cleanItem = sanitizeForFirestore(item);
-                  return setDoc(doc(db, col.name, item.id), cleanItem).catch((err) => {
-                    console.error(`Error saving ${col.name}/${item.id}:`, err);
-                  });
-                })
-              );
+                  batch.set(doc(db, col.name, docId), cleanItem);
+                  addedCount++;
+                }
+                if (addedCount > 0) {
+                  await batch.commit();
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Failed batch commit to Firestore, using fallback:', err);
+          for (const col of collections) {
+            if (col.items && Array.isArray(col.items)) {
+              for (const item of col.items) {
+                if (!item || !item.id) continue;
+                const docId = String(item.id).replace(/\//g, '_');
+                setDoc(doc(db, col.name, docId), sanitizeForFirestore(item)).catch((e) => console.error(e));
+              }
             }
           }
         }
-
-        set((state) => ({
-          departments: data.departments || state.departments,
-          devices: data.devices || state.devices,
-          requests: data.requests || state.requests,
-          trackings: data.trackings || state.trackings,
-          users: data.users || state.users,
-        }));
       },
     }),
     {
