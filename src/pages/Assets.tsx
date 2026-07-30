@@ -66,6 +66,13 @@ export default function Assets() {
   const bulkImageRef = useRef<HTMLInputElement>(null);
   const updateImageRef = useRef<HTMLInputElement>(null);
   const [alertMsg, setAlertMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [importProgress, setImportProgress] = useState<{ current: number; total: number; success: number; notFound: number; currentName: string } | null>(null);
+  const [importCompleteModal, setImportCompleteModal] = useState<{
+    successCount: number;
+    notFoundCount: number;
+    totalCount: number;
+    notFoundNames: string[];
+  } | null>(null);
 
   // Determine which departments to display based on user role (top-level only on screen 1)
   const displayedDepartments = departments.filter((dept) => {
@@ -147,39 +154,69 @@ export default function Assets() {
     setTimeout(() => setAlertMsg(null), 4000);
   };
 
-  const handleBulkImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBulkImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
+    const fileList: File[] = Array.from(files) as File[];
     let successCount = 0;
     let notFoundCount = 0;
+    const notFoundNames: string[] = [];
 
-    const processFile = (file: File) => {
-      return new Promise<void>((resolve) => {
-        const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
-        
-        const device = devices.find(d => d.customId.toLowerCase() === nameWithoutExt.toLowerCase());
-        
-        if (!device) {
-          notFoundCount++;
-          resolve();
-          return;
-        }
-
-        compressImage(file, 800, 0.7)
-          .then((compressedBase64) => {
-            updateDevice(device.id, { imageUrl: compressedBase64 });
-            successCount++;
-            resolve();
-          })
-          .catch(() => resolve());
-      });
-    };
-
-    Promise.all(Array.from(files).map(processFile)).then(() => {
-      showAlert('success', `تم ربط ${successCount} صورة بنجاح. (${notFoundCount} صورة لم تتطابق مع أي كود)`);
-      if (bulkImageRef.current) bulkImageRef.current.value = '';
+    setImportProgress({
+      current: 0,
+      total: fileList.length,
+      success: 0,
+      notFound: 0,
+      currentName: 'بدء الاستيراد...'
     });
+
+    for (let i = 0; i < fileList.length; i++) {
+      const file = fileList[i];
+      const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "").trim();
+
+      const device = devices.find(d => {
+        const customIdMatch = d.customId && d.customId.toString().trim().toLowerCase() === nameWithoutExt.toLowerCase();
+        const serialMatch = d.serialNumber && d.serialNumber.toString().trim().toLowerCase() === nameWithoutExt.toLowerCase();
+        return customIdMatch || serialMatch;
+      });
+
+      if (!device) {
+        notFoundCount++;
+        notFoundNames.push(file.name);
+      } else {
+        try {
+          const compressedBase64 = await compressImage(file, 600, 0.6);
+          updateDevice(device.id, { imageUrl: compressedBase64 });
+          successCount++;
+        } catch (err) {
+          console.error('Error compressing image:', err);
+          notFoundCount++;
+          notFoundNames.push(file.name + ' (خطأ معالجة)');
+        }
+      }
+
+      setImportProgress({
+        current: i + 1,
+        total: fileList.length,
+        success: successCount,
+        notFound: notFoundCount,
+        currentName: file.name
+      });
+
+      // Pause briefly so browser updates UI and releases canvas memory
+      await new Promise(r => setTimeout(r, 40));
+    }
+
+    setImportProgress(null);
+    setImportCompleteModal({
+      successCount,
+      notFoundCount,
+      totalCount: fileList.length,
+      notFoundNames
+    });
+
+    if (bulkImageRef.current) bulkImageRef.current.value = '';
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1587,6 +1624,104 @@ export default function Assets() {
           >
             <X size={24} />
           </button>
+        </div>
+      )}
+
+      {/* Bulk Import Progress Indicator Modal */}
+      {importProgress && (
+        <div className="fixed inset-0 z-[110] bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-center border border-slate-200">
+            <div className="w-14 h-14 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+              <ImageIcon size={28} />
+            </div>
+            <h3 className="text-lg font-bold text-slate-800 mb-2">جاري استيراد ومعالجة الصور...</h3>
+            <p className="text-sm text-slate-600 mb-4 truncate font-mono" dir="ltr">
+              {importProgress.currentName}
+            </p>
+            
+            {/* Progress Bar */}
+            <div className="w-full bg-slate-100 rounded-full h-3 mb-3 overflow-hidden border border-slate-200">
+              <div
+                className="bg-blue-600 h-3 rounded-full transition-all duration-300"
+                style={{
+                  width: `${importProgress.total > 0 ? Math.round((importProgress.current / importProgress.total) * 100) : 0}%`,
+                }}
+              />
+            </div>
+            
+            <div className="flex items-center justify-between text-xs font-bold text-slate-500 mb-4 px-1">
+              <span>تمت المعالجة: {importProgress.current} من {importProgress.total}</span>
+              <span>{importProgress.total > 0 ? Math.round((importProgress.current / importProgress.total) * 100) : 0}%</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-3 rounded-xl border border-slate-200">
+              <div className="text-emerald-700 font-bold">
+                نجح: {importProgress.success} صورة
+              </div>
+              <div className="text-amber-700 font-bold">
+                غير متطابق: {importProgress.notFound} صورة
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Import Finished Modal (Requires Clicking OK) */}
+      {importCompleteModal && (
+        <div className="fixed inset-0 z-[120] bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-center border border-slate-200">
+            <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 size={32} />
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">اكتمل استيراد الصور</h3>
+            <p className="text-sm text-slate-600 mb-5">
+              تم الانتهاء من فحص واستيراد مجموعة الصور المحددة.
+            </p>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-5 text-right space-y-2 text-sm">
+              <div className="flex justify-between items-center text-slate-700 font-bold">
+                <span>إجمالي الصور المحددة:</span>
+                <span className="bg-slate-200 text-slate-800 px-2.5 py-0.5 rounded-full text-xs">
+                  {importCompleteModal.totalCount}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-emerald-700 font-bold">
+                <span>تم استيرادها وربطها بنجاح:</span>
+                <span className="bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full text-xs">
+                  {importCompleteModal.successCount}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-amber-700 font-bold">
+                <span>لم يتم العثور على جهاز مطابق:</span>
+                <span className="bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full text-xs">
+                  {importCompleteModal.notFoundCount}
+                </span>
+              </div>
+
+              {importCompleteModal.notFoundNames.length > 0 && (
+                <div className="mt-3 pt-2 border-t border-slate-200">
+                  <span className="text-xs font-bold text-slate-500 block mb-1">
+                    أمثلة على صور لم تتطابق مع أي كود أو سريال:
+                  </span>
+                  <div className="max-h-24 overflow-y-auto text-xs text-slate-500 bg-white p-2 rounded border border-slate-200 space-y-1">
+                    {importCompleteModal.notFoundNames.slice(0, 10).map((name, idx) => (
+                      <div key={idx} className="truncate" dir="ltr">{name}</div>
+                    ))}
+                    {importCompleteModal.notFoundNames.length > 10 && (
+                      <div className="text-center font-bold text-slate-400">+ {importCompleteModal.notFoundNames.length - 10} صور أخرى</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => setImportCompleteModal(null)}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition-colors cursor-pointer"
+            >
+              موافق
+            </button>
+          </div>
         </div>
       )}
 

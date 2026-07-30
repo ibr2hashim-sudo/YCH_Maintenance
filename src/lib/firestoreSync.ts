@@ -58,7 +58,10 @@ export function compressImage(file: File, maxDimension = 800, quality = 0.7): Pr
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', quality));
+          const dataUrl = canvas.toDataURL('image/jpeg', quality);
+          canvas.width = 0;
+          canvas.height = 0;
+          resolve(dataUrl);
         } else {
           resolve(e.target?.result as string);
         }
