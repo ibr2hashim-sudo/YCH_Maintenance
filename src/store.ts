@@ -1,9 +1,22 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
+import { get, set as idbSet, del } from 'idb-keyval';
 import { doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from './lib/firebase';
 import { sanitizeForFirestore } from './lib/firestoreSync';
 import { User, Department, Device, MaintenanceRequest, MaintenanceTracking } from './types';
+
+const idbStorage: StateStorage = {
+  getItem: async (name: string): Promise<string | null> => {
+    return (await get(name)) || null;
+  },
+  setItem: async (name: string, value: string): Promise<void> => {
+    await idbSet(name, value);
+  },
+  removeItem: async (name: string): Promise<void> => {
+    await del(name);
+  },
+};
 
 interface AppState {
   currentUser: User | null;
@@ -336,6 +349,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'maintenance-cloud-auth-v1',
+      storage: createJSONStorage(() => idbStorage),
       partialize: (state) => ({
         currentUser: state.currentUser,
         users: state.users,
