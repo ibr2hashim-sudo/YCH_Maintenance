@@ -16,10 +16,17 @@ import Tracking from './pages/Tracking';
 
 export default function App() {
   const currentUser = useAppStore((state) => state.currentUser);
+  const hasHydrated = useAppStore((state) => state._hasHydrated);
 
   useEffect(() => {
-    initFirestoreSync();
-  }, []);
+    if (hasHydrated) {
+      initFirestoreSync();
+    }
+  }, [hasHydrated]);
+
+  if (!hasHydrated) {
+    return null; // Or a loading spinner
+  }
 
   return (
     <BrowserRouter>
