@@ -8,6 +8,9 @@ import {
   uploadToGoogleDrive,
   downloadFromGoogleDrive,
   deleteFromGoogleDrive,
+  savePrimaryDatabaseToDrive,
+  loadPrimaryDatabaseFromDrive,
+  PRIMARY_DB_FILE_NAME,
   DriveFileItem,
 } from '../lib/googleDrive';
 import { useAppStore } from '../store';
@@ -217,6 +220,80 @@ export default function GoogleDriveModal({ isOpen, onClose }: GoogleDriveModalPr
     } catch (err: any) {
       console.error('Backup CSV error:', err);
       showAlert('error', 'فشل حفظ تقرير الجرد: ' + err.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Save/Overwrite Canonical Primary Database in Google Drive (Google Drive as Primary Cloud)
+  const handleSavePrimaryDatabase = async () => {
+    if (!token) {
+      showAlert('error', 'يرجى تسجيل الدخول بحساب Google أولاً.');
+      return;
+    }
+
+    setActionLoading('save-primary-db');
+    try {
+      const primaryData = {
+        version: '1.0',
+        timestamp: new Date().toISOString(),
+        departments,
+        devices,
+        requests,
+        trackings,
+        users,
+        settings: {
+          oilFilterInterval,
+          trackingCategories,
+          accessoriesList,
+        },
+      };
+
+      const content = JSON.stringify(primaryData, null, 2);
+      await savePrimaryDatabaseToDrive(token, content);
+      showAlert('success', 'تم حفظ وتحديث قاعدة البيانات الرئيسية الموحدة في Google Drive بنجاح!');
+      await loadFiles(token);
+    } catch (err: any) {
+      console.error('Save primary db error:', err);
+      showAlert('error', 'فشل حفظ قاعدة البيانات الرئيسية: ' + err.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Load Canonical Primary Database from Google Drive (Google Drive as Primary Cloud)
+  const handleLoadPrimaryDatabase = async () => {
+    if (!token) {
+      showAlert('error', 'يرجى تسجيل الدخول بحساب Google أولاً.');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      'هل تريد تحميل قاعدة البيانات الرئيسية الموحدة من Google Drive ومزامنة النظام الآن؟\n\nتنبيه: سيتم استبدال البيانات الحالية بالبيانات الموجودة في ملف قاعدة البيانات الرئيسية في السحابة.'
+    );
+    if (!confirmed) return;
+
+    setActionLoading('load-primary-db');
+    try {
+      const result = await loadPrimaryDatabaseFromDrive(token);
+      if (!result) {
+        showAlert('error', 'لم يتم العثور على ملف قاعدة بيانات رئيسية في Google Drive. يرجى الضغط على "حفظ كقاعدة بيانات رئيسية" أولاً.');
+        return;
+      }
+
+      const data = JSON.parse(result.content);
+      await importDatabase({
+        departments: data.departments,
+        devices: data.devices,
+        requests: data.requests,
+        trackings: data.trackings,
+        users: data.users,
+      });
+
+      showAlert('success', 'تم مزامنة وتحميل قاعدة البيانات الرئيسية من Google Drive بنجاح!');
+    } catch (err: any) {
+      console.error('Load primary db error:', err);
+      showAlert('error', 'فشل تحميل قاعدة البيانات الرئيسية: ' + err.message);
     } finally {
       setActionLoading(null);
     }
@@ -462,6 +539,66 @@ export default function GoogleDriveModal({ isOpen, onClose }: GoogleDriveModalPr
                   <LogOut size={14} />
                   تسجيل الخروج من Google
                 </button>
+              </div>
+
+              {/* Primary Cloud Database Section (Alternative to Firebase) */}
+              <div className="bg-gradient-to-br from-indigo-900 via-blue-900 to-slate-900 text-white rounded-3xl p-6 shadow-lg border border-blue-700/50 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-white/10 p-3 rounded-2xl border border-white/20">
+                      <Cloud size={24} className="text-blue-300" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base font-bold text-white">Google Drive كـ سحابة أساسية (بديل عن Firebase)</h3>
+                        <span className="bg-blue-500/30 border border-blue-400/40 text-blue-200 text-xs px-2.5 py-0.5 rounded-full font-bold">
+                          مُستحسن
+                        </span>
+                      </div>
+                      <p className="text-xs text-blue-100 mt-1">
+                        يمكنك استخدام ملف قاعدة بيانات رئيسي موحد في Google Drive ومزامنته بين جميع أجهزتك دون الحاجة لـ Firebase.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                  <button
+                    onClick={handleSavePrimaryDatabase}
+                    disabled={!!actionLoading}
+                    className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-400/50 text-white font-bold py-3 px-4 rounded-2xl text-xs transition-all cursor-pointer shadow-md border border-blue-400/30"
+                  >
+                    {actionLoading === 'save-primary-db' ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        جاري الحفظ في Google Drive...
+                      </>
+                    ) : (
+                      <>
+                        <Upload size={16} />
+                        حفظ كقاعدة البيانات الرئيسية (Primary DB)
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={handleLoadPrimaryDatabase}
+                    disabled={!!actionLoading}
+                    className="flex items-center justify-center gap-2 bg-white/15 hover:bg-white/25 disabled:bg-white/5 text-white font-bold py-3 px-4 rounded-2xl text-xs transition-all cursor-pointer border border-white/20"
+                  >
+                    {actionLoading === 'load-primary-db' ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        جاري التحميل والمزامنة...
+                      </>
+                    ) : (
+                      <>
+                        <Download size={16} />
+                        تحميل ومزامنة قاعدة البيانات من Drive
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
               {/* Action Cards */}

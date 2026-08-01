@@ -4,7 +4,7 @@ import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-const dbId = firebaseConfig.firestoreDatabaseId || '(default)';
+const dbId = (firebaseConfig as any).firestoreDatabaseId || '(default)';
 
 export const db = getFirestore(app, dbId);
 

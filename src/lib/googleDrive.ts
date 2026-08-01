@@ -224,3 +224,78 @@ export async function deleteFromGoogleDrive(token: string, fileId: string): Prom
     throw new Error('فشل حذف الملف من Google Drive');
   }
 }
+
+export const PRIMARY_DB_FILE_NAME = 'maintenance_system_primary_db.json';
+
+/**
+ * Saves or overwrites the single canonical primary database file in Google Drive.
+ * This allows using Google Drive as a primary cloud storage without creating duplicate timestamped files.
+ */
+export async function savePrimaryDatabaseToDrive(token: string, content: string): Promise<DriveFileItem> {
+  const folderId = await getOrCreateBackupFolder(token);
+
+  // Check if primary db file already exists
+  const query = encodeURIComponent(`name='${PRIMARY_DB_FILE_NAME}' and '${folderId}' in parents and trashed=false`);
+  const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,createdTime,size,mimeType,description)`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (listRes.ok) {
+    const listData = await listRes.json();
+    if (listData.files && listData.files.length > 0) {
+      const existingFile = listData.files[0];
+      // PATCH update content
+      const patchRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${existingFile.id}?uploadType=media`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: content,
+      });
+
+      if (!patchRes.ok) {
+        throw new Error('فشل تحديث قاعدة البيانات الرئيسية في Google Drive');
+      }
+      const updatedData = await patchRes.json();
+      return {
+        ...existingFile,
+        ...updatedData,
+      };
+    }
+  }
+
+  // Otherwise create new primary file
+  return await uploadToGoogleDrive(
+    token,
+    PRIMARY_DB_FILE_NAME,
+    content,
+    'application/json',
+    'قاعدة البيانات الرئيسية الموحدة لنظام إدارة الصيانة والعهد'
+  );
+}
+
+/**
+ * Loads the single canonical primary database file from Google Drive if it exists.
+ */
+export async function loadPrimaryDatabaseFromDrive(token: string): Promise<{ content: string; file: DriveFileItem } | null> {
+  const folderId = await getOrCreateBackupFolder(token);
+  const query = encodeURIComponent(`name='${PRIMARY_DB_FILE_NAME}' and '${folderId}' in parents and trashed=false`);
+  const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,createdTime,size,mimeType,description)`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!listRes.ok) {
+    throw new Error('فشل البحث عن قاعدة البيانات الرئيسية في Google Drive');
+  }
+
+  const listData = await listRes.json();
+  if (!listData.files || listData.files.length === 0) {
+    return null;
+  }
+
+  const file = listData.files[0];
+  const content = await downloadFromGoogleDrive(token, file.id);
+  return { content, file };
+}
+
