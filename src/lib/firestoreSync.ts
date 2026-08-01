@@ -25,7 +25,13 @@ export function sanitizeForFirestore(obj: any): any {
   for (const key of Object.keys(obj)) {
     const val = obj[key];
     if (val !== undefined && typeof val !== 'function') {
-      result[key] = sanitizeForFirestore(val);
+      if (typeof val === 'string' && val.length > 900000) {
+        // Truncate base64 or huge strings that exceed Firestore 1MB limits
+        result[key] = '';
+        console.warn(`Truncated massive string for key: ${key}`);
+      } else {
+        result[key] = sanitizeForFirestore(val);
+      }
     }
   }
   return result;
