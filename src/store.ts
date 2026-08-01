@@ -363,7 +363,9 @@ export const useAppStore = create<AppState>()(
         currentUser: state.currentUser,
         users: state.users,
         departments: state.departments,
-        devices: state.devices,
+        // We explicitly EXCLUDE 'devices' from persist to avoid Out of Memory errors
+        // caused by JSON.stringify on thousands of base64 images.
+        // They will be loaded fresh from Firestore on app start.
         requests: state.requests,
         trackings: state.trackings,
         oilFilterInterval: state.oilFilterInterval,

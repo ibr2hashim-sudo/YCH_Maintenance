@@ -95,6 +95,7 @@ const defaultSettings = {
 let initialized = false;
 
 export function initFirestoreSync() {
+  console.log("initFirestoreSync called! initialized=", initialized);
   if (initialized) return;
   initialized = true;
 
@@ -103,6 +104,7 @@ export function initFirestoreSync() {
 
   // 1. Sync Users directly from Firestore
   onSnapshot(collection(db, 'users'), (snapshot) => {
+    console.log("Snapshot for devices. empty:", snapshot.empty, "size:", snapshot.size);
     if (!snapshot.empty) {
       const remoteUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
       useAppStore.setState({ users: remoteUsers });
@@ -119,6 +121,7 @@ export function initFirestoreSync() {
 
   // 2. Sync Departments directly from Firestore
   onSnapshot(collection(db, 'departments'), (snapshot) => {
+    console.log("Snapshot for devices. empty:", snapshot.empty, "size:", snapshot.size);
     if (!snapshot.empty) {
       const remoteDepts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Department));
       useAppStore.setState({ departments: remoteDepts });
@@ -132,6 +135,7 @@ export function initFirestoreSync() {
 
   // 3. Sync Devices directly from Firestore
   onSnapshot(collection(db, 'devices'), (snapshot) => {
+    console.log("Snapshot for devices. empty:", snapshot.empty, "size:", snapshot.size);
     if (!snapshot.empty) {
       const remoteDevices = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Device));
       useAppStore.setState({ devices: remoteDevices });
@@ -145,6 +149,7 @@ export function initFirestoreSync() {
 
   // 4. Sync Maintenance Requests directly from Firestore
   onSnapshot(collection(db, 'requests'), (snapshot) => {
+    console.log("Snapshot for devices. empty:", snapshot.empty, "size:", snapshot.size);
     if (!snapshot.empty) {
       const remoteRequests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MaintenanceRequest));
       useAppStore.setState({ requests: remoteRequests });
@@ -158,6 +163,7 @@ export function initFirestoreSync() {
 
   // 5. Sync Tracking directly from Firestore
   onSnapshot(collection(db, 'trackings'), (snapshot) => {
+    console.log("Snapshot for devices. empty:", snapshot.empty, "size:", snapshot.size);
     if (!snapshot.empty) {
       const remoteTrackings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MaintenanceTracking));
       useAppStore.setState({ trackings: remoteTrackings });
