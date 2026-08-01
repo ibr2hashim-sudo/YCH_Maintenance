@@ -9,8 +9,9 @@ import { Device, DeviceStatus, Department } from '../types';
 import { 
   Plus, Edit3, Trash2, ArrowRight, Download, Upload, Image as ImageIcon, 
   Camera, Package, Tag, FileText, CheckCircle2, AlertOctagon, X, User, Home,
-  FolderTree, Link as LinkIcon
+  FolderTree, Link as LinkIcon, Cloud
 } from 'lucide-react';
+import GoogleDriveModal from '../components/GoogleDriveModal';
 
 export default function Assets() {
   const navigate = useNavigate();
@@ -22,6 +23,7 @@ export default function Assets() {
   // Navigation State
   const [selectedDeptId, setSelectedDeptId] = useState<string | null>(null);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
+  const [isDriveModalOpen, setIsDriveModalOpen] = useState(false);
 
   // Fullscreen Image View
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
@@ -633,6 +635,14 @@ export default function Assets() {
         {/* Admin Import/Export Database Controls */}
         {currentUser?.role === 'admin' && selectedDeptId === null && (
           <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setIsDriveModalOpen(true)}
+              className="flex items-center gap-2 bg-blue-800 hover:bg-blue-900 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
+            >
+              <Cloud size={14} />
+              النسخ السحابي (Google Drive)
+            </button>
+
             <button
               onClick={handleExportCSV}
               className="flex items-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border border-slate-200"
@@ -1725,6 +1735,11 @@ export default function Assets() {
         </div>
       )}
 
+      {/* Google Drive Modal */}
+      <GoogleDriveModal
+        isOpen={isDriveModalOpen}
+        onClose={() => setIsDriveModalOpen(false)}
+      />
     </div>
   );
 }
