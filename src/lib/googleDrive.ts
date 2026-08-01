@@ -60,6 +60,12 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
     return { user: result.user, accessToken: cachedAccessToken };
   } catch (error: any) {
     console.error('Google Sign in error:', error);
+    if (error?.code === 'auth/unauthorized-domain' || error?.message?.includes('auth/unauthorized-domain')) {
+      const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'رابط موقعك';
+      throw new Error(
+        `النطاق الحالي ("${currentHost}") غير مضاف في إعدادات Firebase Authorized domains، أو أنك تستخدم النسخة القديمة على Netlify. لحل المشكلة فوراً:\n1) تأكد من إضافة "${currentHost}" في لوحة تحكم Firebase > Authentication > Settings > Authorized domains.\n2) قم بتحميل أحدث نسخة ZIP من AI Studio واضغط على زر "⚙️ إعدادات رابط Firebase المخصص" بالأسفل والصق إعداداتك.`
+      );
+    }
     throw error;
   } finally {
     isSigningIn = false;
