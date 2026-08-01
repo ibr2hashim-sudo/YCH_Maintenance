@@ -95,7 +95,6 @@ const defaultSettings = {
 let initialized = false;
 
 export function initFirestoreSync() {
-  console.log("initFirestoreSync called! initialized=", initialized);
   if (initialized) return;
   initialized = true;
 
@@ -104,10 +103,20 @@ export function initFirestoreSync() {
 
   // 1. Sync Users directly from Firestore
   onSnapshot(collection(db, 'users'), (snapshot) => {
-    console.log("Snapshot for devices. empty:", snapshot.empty, "size:", snapshot.size);
     if (!snapshot.empty) {
       const remoteUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-      useAppStore.setState({ users: remoteUsers });
+      const remoteIds = new Set(remoteUsers.map(u => u.id));
+      const localUsers = useAppStore.getState().users || [];
+      const missingInCloud = localUsers.filter(u => u.id && !remoteIds.has(u.id));
+
+      if (missingInCloud.length > 0) {
+        missingInCloud.forEach(u => {
+          setDoc(doc(db, 'users', getDocId(u.id)), sanitizeForFirestore(u)).catch(() => {});
+        });
+        useAppStore.setState({ users: [...remoteUsers, ...missingInCloud] });
+      } else {
+        useAppStore.setState({ users: remoteUsers });
+      }
     } else {
       const localUsers = useAppStore.getState().users;
       if (localUsers && localUsers.length > 0) {
@@ -121,10 +130,20 @@ export function initFirestoreSync() {
 
   // 2. Sync Departments directly from Firestore
   onSnapshot(collection(db, 'departments'), (snapshot) => {
-    console.log("Snapshot for devices. empty:", snapshot.empty, "size:", snapshot.size);
     if (!snapshot.empty) {
       const remoteDepts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Department));
-      useAppStore.setState({ departments: remoteDepts });
+      const remoteIds = new Set(remoteDepts.map(d => d.id));
+      const localDepts = useAppStore.getState().departments || [];
+      const missingInCloud = localDepts.filter(d => d.id && !remoteIds.has(d.id));
+
+      if (missingInCloud.length > 0) {
+        missingInCloud.forEach(d => {
+          setDoc(doc(db, 'departments', getDocId(d.id)), sanitizeForFirestore(d)).catch(() => {});
+        });
+        useAppStore.setState({ departments: [...remoteDepts, ...missingInCloud] });
+      } else {
+        useAppStore.setState({ departments: remoteDepts });
+      }
     } else {
       const localDepts = useAppStore.getState().departments;
       if (localDepts && localDepts.length > 0) {
@@ -135,10 +154,20 @@ export function initFirestoreSync() {
 
   // 3. Sync Devices directly from Firestore
   onSnapshot(collection(db, 'devices'), (snapshot) => {
-    console.log("Snapshot for devices. empty:", snapshot.empty, "size:", snapshot.size);
     if (!snapshot.empty) {
       const remoteDevices = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Device));
-      useAppStore.setState({ devices: remoteDevices });
+      const remoteIds = new Set(remoteDevices.map(d => d.id));
+      const localDevices = useAppStore.getState().devices || [];
+      const missingInCloud = localDevices.filter(d => d.id && !remoteIds.has(d.id));
+
+      if (missingInCloud.length > 0) {
+        missingInCloud.forEach(dev => {
+          setDoc(doc(db, 'devices', getDocId(dev.id)), sanitizeForFirestore(dev)).catch(() => {});
+        });
+        useAppStore.setState({ devices: [...remoteDevices, ...missingInCloud] });
+      } else {
+        useAppStore.setState({ devices: remoteDevices });
+      }
     } else {
       const localDevices = useAppStore.getState().devices;
       if (localDevices && localDevices.length > 0) {
@@ -149,10 +178,20 @@ export function initFirestoreSync() {
 
   // 4. Sync Maintenance Requests directly from Firestore
   onSnapshot(collection(db, 'requests'), (snapshot) => {
-    console.log("Snapshot for devices. empty:", snapshot.empty, "size:", snapshot.size);
     if (!snapshot.empty) {
       const remoteRequests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MaintenanceRequest));
-      useAppStore.setState({ requests: remoteRequests });
+      const remoteIds = new Set(remoteRequests.map(r => r.id));
+      const localRequests = useAppStore.getState().requests || [];
+      const missingInCloud = localRequests.filter(r => r.id && !remoteIds.has(r.id));
+
+      if (missingInCloud.length > 0) {
+        missingInCloud.forEach(r => {
+          setDoc(doc(db, 'requests', getDocId(r.id)), sanitizeForFirestore(r)).catch(() => {});
+        });
+        useAppStore.setState({ requests: [...remoteRequests, ...missingInCloud] });
+      } else {
+        useAppStore.setState({ requests: remoteRequests });
+      }
     } else {
       const localRequests = useAppStore.getState().requests;
       if (localRequests && localRequests.length > 0) {
@@ -163,10 +202,20 @@ export function initFirestoreSync() {
 
   // 5. Sync Tracking directly from Firestore
   onSnapshot(collection(db, 'trackings'), (snapshot) => {
-    console.log("Snapshot for devices. empty:", snapshot.empty, "size:", snapshot.size);
     if (!snapshot.empty) {
       const remoteTrackings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MaintenanceTracking));
-      useAppStore.setState({ trackings: remoteTrackings });
+      const remoteIds = new Set(remoteTrackings.map(t => t.id));
+      const localTrackings = useAppStore.getState().trackings || [];
+      const missingInCloud = localTrackings.filter(t => t.id && !remoteIds.has(t.id));
+
+      if (missingInCloud.length > 0) {
+        missingInCloud.forEach(t => {
+          setDoc(doc(db, 'trackings', getDocId(t.id)), sanitizeForFirestore(t)).catch(() => {});
+        });
+        useAppStore.setState({ trackings: [...remoteTrackings, ...missingInCloud] });
+      } else {
+        useAppStore.setState({ trackings: remoteTrackings });
+      }
     } else {
       const localTrackings = useAppStore.getState().trackings;
       if (localTrackings && localTrackings.length > 0) {

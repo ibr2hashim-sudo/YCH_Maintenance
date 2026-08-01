@@ -19,8 +19,6 @@ const idbStorage: StateStorage = {
 };
 
 interface AppState {
-  _hasHydrated: boolean;
-  setHasHydrated: (state: boolean) => void;
   currentUser: User | null;
   users: User[];
   departments: Department[];
@@ -83,8 +81,6 @@ const getDocId = (id: string) => String(id || '').replace(/\//g, '_');
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
-      _hasHydrated: false,
-      setHasHydrated: (state) => set({ _hasHydrated: state }),
       currentUser: null,
       users: defaultUsers,
       departments: defaultDepartments,
@@ -354,18 +350,11 @@ export const useAppStore = create<AppState>()(
     {
       name: 'maintenance-cloud-auth-v1',
       storage: createJSONStorage(() => idbStorage),
-      onRehydrateStorage: () => (state) => {
-        if (state) {
-          state.setHasHydrated(true);
-        }
-      },
       partialize: (state) => ({
         currentUser: state.currentUser,
         users: state.users,
         departments: state.departments,
-        // We explicitly EXCLUDE 'devices' from persist to avoid Out of Memory errors
-        // caused by JSON.stringify on thousands of base64 images.
-        // They will be loaded fresh from Firestore on app start.
+        devices: state.devices,
         requests: state.requests,
         trackings: state.trackings,
         oilFilterInterval: state.oilFilterInterval,
