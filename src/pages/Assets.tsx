@@ -2,16 +2,14 @@ import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import * as XLSX from 'xlsx';
 import { useAppStore } from '../store';
 import { compressImage } from '../lib/firestoreSync';
 import { Device, DeviceStatus, Department } from '../types';
 import { 
   Plus, Edit3, Trash2, ArrowRight, Download, Upload, Image as ImageIcon, 
   Camera, Package, Tag, FileText, CheckCircle2, AlertOctagon, X, User, Home,
-  FolderTree, Link as LinkIcon, Cloud
+  FolderTree, Link as LinkIcon
 } from 'lucide-react';
-import GoogleDriveModal from '../components/GoogleDriveModal';
 
 export default function Assets() {
   const navigate = useNavigate();
@@ -23,7 +21,6 @@ export default function Assets() {
   // Navigation State
   const [selectedDeptId, setSelectedDeptId] = useState<string | null>(null);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
-  const [isDriveModalOpen, setIsDriveModalOpen] = useState(false);
 
   // Fullscreen Image View
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
@@ -68,13 +65,6 @@ export default function Assets() {
   const bulkImageRef = useRef<HTMLInputElement>(null);
   const updateImageRef = useRef<HTMLInputElement>(null);
   const [alertMsg, setAlertMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [importProgress, setImportProgress] = useState<{ current: number; total: number; success: number; notFound: number; currentName: string } | null>(null);
-  const [importCompleteModal, setImportCompleteModal] = useState<{
-    successCount: number;
-    notFoundCount: number;
-    totalCount: number;
-    notFoundNames: string[];
-  } | null>(null);
 
   // Determine which departments to display based on user role (top-level only on screen 1)
   const displayedDepartments = departments.filter((dept) => {
@@ -156,69 +146,39 @@ export default function Assets() {
     setTimeout(() => setAlertMsg(null), 4000);
   };
 
-  const handleBulkImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBulkImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    const fileList: File[] = Array.from(files) as File[];
     let successCount = 0;
     let notFoundCount = 0;
-    const notFoundNames: string[] = [];
 
-    setImportProgress({
-      current: 0,
-      total: fileList.length,
-      success: 0,
-      notFound: 0,
-      currentName: 'بدء الاستيراد...'
-    });
-
-    for (let i = 0; i < fileList.length; i++) {
-      const file = fileList[i];
-      const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "").trim();
-
-      const device = devices.find(d => {
-        const customIdMatch = d.customId && d.customId.toString().trim().toLowerCase() === nameWithoutExt.toLowerCase();
-        const serialMatch = d.serialNumber && d.serialNumber.toString().trim().toLowerCase() === nameWithoutExt.toLowerCase();
-        return customIdMatch || serialMatch;
-      });
-
-      if (!device) {
-        notFoundCount++;
-        notFoundNames.push(file.name);
-      } else {
-        try {
-          const compressedBase64 = await compressImage(file, 600, 0.6);
-          updateDevice(device.id, { imageUrl: compressedBase64 });
-          successCount++;
-        } catch (err) {
-          console.error('Error compressing image:', err);
+    const processFile = (file: File) => {
+      return new Promise<void>((resolve) => {
+        const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
+        
+        const device = devices.find(d => d.customId.toLowerCase() === nameWithoutExt.toLowerCase());
+        
+        if (!device) {
           notFoundCount++;
-          notFoundNames.push(file.name + ' (خطأ معالجة)');
+          resolve();
+          return;
         }
-      }
 
-      setImportProgress({
-        current: i + 1,
-        total: fileList.length,
-        success: successCount,
-        notFound: notFoundCount,
-        currentName: file.name
+        compressImage(file, 800, 0.7)
+          .then((compressedBase64) => {
+            updateDevice(device.id, { imageUrl: compressedBase64 });
+            successCount++;
+            resolve();
+          })
+          .catch(() => resolve());
       });
+    };
 
-      // Pause briefly so browser updates UI and releases canvas memory
-      await new Promise(r => setTimeout(r, 40));
-    }
-
-    setImportProgress(null);
-    setImportCompleteModal({
-      successCount,
-      notFoundCount,
-      totalCount: fileList.length,
-      notFoundNames
+    Promise.all(Array.from(files).map(processFile)).then(() => {
+      showAlert('success', `تم ربط ${successCount} صورة بنجاح. (${notFoundCount} صورة لم تتطابق مع أي كود)`);
+      if (bulkImageRef.current) bulkImageRef.current.value = '';
     });
-
-    if (bulkImageRef.current) bulkImageRef.current.value = '';
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -413,164 +373,189 @@ export default function Assets() {
     showAlert('success', 'تم تصدير ملف الجرد بنجاح!');
   };
 
-  // CSV / EXCEL IMPORT
-  const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // CSV IMPORT
+  const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    try {
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data, { type: 'array' });
-      if (!workbook.SheetNames || !workbook.SheetNames.length) {
-        throw new Error('الملف فارغ');
-      }
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const text = evt.target?.result as string;
+        const lines = text.split('\n');
+        if (lines.length < 2) throw new Error('الملف فارغ أو غير متوافق');
 
-      const firstSheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[firstSheetName];
-      const jsonRows = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet, { defval: '' });
+        const clean = (val: string) => val ? val.replace(/^"|"$/g, '').trim() : '';
+        
+        let separator: RegExp = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
+        if (lines[0].includes('\t')) {
+          separator = /\t/;
+        } else if (lines[0].includes(';')) {
+          separator = /;(?=(?:(?:[^"]*"){2})*[^"]*$)/;
+        }
 
-      if (!jsonRows || jsonRows.length === 0) {
-        throw new Error('الملف لا يحتوي على بيانات قابلة للقراءة');
-      }
+        const headers = lines[0].split(separator).map(h => clean(h).toLowerCase());
 
-      const getValue = (row: Record<string, any>, keys: string[]): string => {
-        const rowKeys = Object.keys(row);
-        for (const k of keys) {
-          const matchKey = rowKeys.find(
-            rk => rk.trim().toLowerCase() === k.trim().toLowerCase() || rk.trim().toLowerCase().includes(k.trim().toLowerCase())
-          );
-          if (matchKey && row[matchKey] !== undefined && row[matchKey] !== null) {
-            return String(row[matchKey]).trim();
+        const getIndex = (possibleNames: string[]) => {
+          let idx = headers.findIndex(h => possibleNames.some(name => h === name.toLowerCase()));
+          if (idx === -1) {
+            idx = headers.findIndex(h => possibleNames.some(name => h.includes(name.toLowerCase())));
           }
-        }
-        return '';
-      };
+          return idx;
+        };
 
-      const importedRows: {
-        devData: Omit<Device, 'departmentId'>;
-        mainDeptName: string;
-        subDeptName: string;
-      }[] = [];
+        const idxDeptName = getIndex(['القسم', 'department', 'القسم الرئيسي']);
+        const idxSubDeptName = getIndex(['القسم الداخلي', 'العيادة', 'sub department', 'internal department', 'القسم الفرعي', 'clinic']);
+        const idxType = getIndex(['النوع', 'type']);
+        const idxName = getIndex(['اسم الجهاز', 'device name']);
+        const idxCustomId = getIndex(['id', 'code', 'كود', 'device code']);
+        
+        let idxBookQty = getIndex(['الكمية الدفترية', 'الكمية السابقة', 'book qty']);
+        let idxCurrentQty = headers.findIndex(h => h === 'الكمية الحالية' || h === 'الكمية' || h === 'qty' || h === 'current qty');
+        if (idxCurrentQty === -1) idxCurrentQty = getIndex(['الكمية الحالية', 'الكمية']);
 
-      jsonRows.forEach((row, i) => {
-        const mainDeptName = getValue(row, ['القسم الرئيسي', 'القسم', 'department', 'dept', 'قسم']) || 'عام';
-        const subDeptName = getValue(row, ['القسم الداخلي', 'العيادة', 'sub department', 'clinic', 'القسم الفرعي', 'فرع']);
-        const type = getValue(row, ['النوع', 'نوع الجهاز', 'type']);
-        const name = getValue(row, ['اسم الجهاز', 'الجهاز', 'device name', 'device', 'اسم']) || `جهاز مستورد ${i + 1}`;
-        const customId = getValue(row, ['كود', 'code', 'id', 'device code', 'الرقم المرجعي', 'كود الجهاز']);
-        const currentQty = parseInt(getValue(row, ['الكمية الحالية', 'الكمية', 'current qty', 'qty', 'العدد'])) || 0;
-        const bookQty = parseInt(getValue(row, ['الكمية الدفترية', 'الكمية السابقة', 'book qty'])) || currentQty;
-        const model = getValue(row, ['الموديل', 'model']);
-        const serialNumber = getValue(row, ['الرقم التسلسلي', 'serial number', 'serial', 'سيريال']);
-        const company = getValue(row, ['الشركة المصنعه', 'الشركة المصنعة', 'manufacturer', 'company', 'الشركة']);
-        const statusVal = getValue(row, ['حالة الجهاز', 'الحالة', 'status']);
-        const status = (statusVal as DeviceStatus) || 'شغال';
-        const custodian = getValue(row, ['مستلم العهدة', 'مستلم', 'custodian', 'العهدة']);
-        const accessoriesRaw = getValue(row, ['التوابع', 'الملحقات', 'توابع', 'accessories']);
-        const notes = getValue(row, ['ملاحظة', 'ملاحظات', 'notes']);
+        const idxModel = getIndex(['الموديل', 'model']);
+        const idxSerialNumber = getIndex(['الرقم التسلسلي', 'serial number', 'serial']);
+        const idxCompany = getIndex(['الشركة المصنعه', 'الشركة المصنعة', 'manufacturer', 'company']);
+        const idxStatus = getIndex(['حالة الجهاز', 'الحالة', 'status']);
+        const idxCustodian = getIndex(['مستلم العهدة', 'مستلم', 'custodian']);
+        const idxAccessories = getIndex(['التوابع', 'الملحقات', 'توابع', 'accessories']);
+        const idxNotes = getIndex(['ملاحظة', 'ملاحظات', 'notes']);
 
-        importedRows.push({
-          mainDeptName,
-          subDeptName,
-          devData: {
-            id: `dev-imported-${Date.now()}-${i}-${Math.random().toString(36).substring(2, 5)}`,
-            name,
-            type,
-            customId,
-            currentQty,
-            bookQty,
-            difference: bookQty - currentQty,
-            model,
-            serialNumber,
-            company,
-            status,
-            custodian,
-            accessories: accessoriesRaw ? accessoriesRaw.split(/[/,]/).map(a => a.trim()).filter(Boolean) : [],
-            notes
-          }
-        });
-      });
+        const importedRows: {
+          devData: Omit<Device, 'departmentId'>;
+          mainDeptName: string;
+          subDeptName: string;
+        }[] = [];
+        
+        // Skip header
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+          
+          const columns = line.split(separator);
+          
+          const getCol = (idx: number) => idx !== -1 && columns[idx] ? clean(columns[idx]) : '';
 
-      const updatedDepts = [...departments];
+          const deptName = getCol(idxDeptName) || 'عام';
+          const subDeptName = getCol(idxSubDeptName);
+          const type = getCol(idxType);
+          const name = getCol(idxName);
+          const customId = getCol(idxCustomId);
+          const currentQty = parseInt(getCol(idxCurrentQty)) || 0;
+          const bookQty = parseInt(getCol(idxBookQty)) || 0;
+          const model = getCol(idxModel);
+          const serialNumber = getCol(idxSerialNumber);
+          const company = getCol(idxCompany);
+          const statusVal = getCol(idxStatus);
+          const status = (statusVal as DeviceStatus) || 'شغال';
+          const custodian = getCol(idxCustodian);
+          const accessoriesRaw = getCol(idxAccessories);
+          const notes = getCol(idxNotes);
 
-      const getOrCreateDepartment = (name: string, parentId?: string): string => {
-        const trimmed = name.trim();
-        let found = updatedDepts.find((d) => d.name.trim().toLowerCase() === trimmed.toLowerCase());
-        if (!found) {
-          const newId = `d-imp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-          const newDept: Department = { id: newId, name: trimmed, ...(parentId ? { parentId } : {}) };
-          updatedDepts.push(newDept);
-          return newId;
-        } else if (parentId && !found.parentId) {
-          found.parentId = parentId;
-        }
-        return found.id;
-      };
-
-      const importedDevices: Device[] = [];
-
-      importedRows.forEach((row) => {
-        const mainName = row.mainDeptName.trim() || 'عام';
-        const subName = row.subDeptName ? row.subDeptName.trim() : '';
-
-        const mainId = getOrCreateDepartment(mainName, undefined);
-        let targetDeptId = mainId;
-
-        if (subName && subName !== mainName) {
-          targetDeptId = getOrCreateDepartment(subName, mainId);
-        }
-
-        importedDevices.push({
-          ...row.devData,
-          departmentId: targetDeptId
-        });
-      });
-
-      const existingDevicesMap = new Map<string, Device>();
-      devices.forEach(dev => {
-        if (dev.customId) {
-          existingDevicesMap.set(dev.customId.trim().toLowerCase(), dev);
-        } else {
-          existingDevicesMap.set(dev.name.trim().toLowerCase(), dev);
-        }
-      });
-
-      let updatedCount = 0;
-      let addedCount = 0;
-
-      importedDevices.forEach((dev) => {
-        const key = dev.customId ? dev.customId.trim().toLowerCase() : dev.name.trim().toLowerCase();
-
-        if (existingDevicesMap.has(key)) {
-          const existingDev = existingDevicesMap.get(key)!;
-          existingDevicesMap.set(key, {
-            ...existingDev,
-            ...dev,
-            id: existingDev.id,
-            departmentId: dev.departmentId,
-            imageUrl: existingDev.imageUrl || dev.imageUrl
+          importedRows.push({
+            mainDeptName: deptName,
+            subDeptName: subDeptName,
+            devData: {
+              id: `dev-imported-${i}-${Date.now()}`,
+              name,
+              type,
+              customId,
+              currentQty,
+              bookQty,
+              difference: bookQty - currentQty,
+              model,
+              serialNumber,
+              company,
+              status,
+              custodian,
+              accessories: accessoriesRaw ? accessoriesRaw.split(' / ') : [],
+              notes
+            }
           });
-          updatedCount++;
-        } else {
-          existingDevicesMap.set(key, dev);
-          addedCount++;
         }
-      });
 
-      const mergedDevices = Array.from(existingDevicesMap.values());
+        // Map department names to IDs and construct hierarchy automatically
+        const updatedDepts = [...departments];
 
-      await importDatabase({
-        departments: updatedDepts,
-        devices: mergedDevices
-      });
+        const getOrCreateDepartment = (name: string, parentId?: string): string => {
+          const trimmed = name.trim();
+          let found = updatedDepts.find((d) => d.name.trim().toLowerCase() === trimmed.toLowerCase());
+          if (!found) {
+            const newId = `d-imp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+            const newDept: Department = { id: newId, name: trimmed, ...(parentId ? { parentId } : {}) };
+            updatedDepts.push(newDept);
+            return newId;
+          }
+          return found.id;
+        };
 
-      showAlert('success', `تم استيراد الجرد بنجاح! (تم إضافة ${addedCount} جديد، وتحديث ${updatedCount} موجود)`);
-    } catch (err: any) {
-      console.error('Import error:', err);
-      showAlert('error', 'فشل في قراءة ملف الاستيراد. تأكد من صحة تنسيق ملف CSV أو Excel.');
-    } finally {
-      e.target.value = '';
-    }
+        const importedDevices: Device[] = [];
+
+        importedRows.forEach((row) => {
+          const mainName = row.mainDeptName.trim() || 'عام';
+          const subName = row.subDeptName ? row.subDeptName.trim() : '';
+
+          const mainId = getOrCreateDepartment(mainName, undefined);
+          let targetDeptId = mainId;
+
+          if (subName && subName !== mainName) {
+            targetDeptId = getOrCreateDepartment(subName, mainId);
+          }
+
+          importedDevices.push({
+            ...row.devData,
+            departmentId: targetDeptId
+          });
+        });
+
+        // Resolve device department IDs and merge/update by customId to prevent duplicate IDs
+        const existingDevicesMap = new Map<string, Device>();
+        devices.forEach(dev => {
+          if (dev.customId) {
+            existingDevicesMap.set(dev.customId.trim().toLowerCase(), dev);
+          } else {
+            existingDevicesMap.set(dev.name.trim().toLowerCase(), dev);
+          }
+        });
+
+        let updatedCount = 0;
+        let addedCount = 0;
+
+        importedDevices.forEach((dev) => {
+          const key = dev.customId ? dev.customId.trim().toLowerCase() : dev.name.trim().toLowerCase();
+
+          if (existingDevicesMap.has(key)) {
+            // Update existing device while preserving its original ID and image
+            const existingDev = existingDevicesMap.get(key)!;
+            existingDevicesMap.set(key, {
+              ...existingDev,
+              ...dev,
+              id: existingDev.id,
+              departmentId: dev.departmentId,
+              imageUrl: existingDev.imageUrl || dev.imageUrl
+            });
+            updatedCount++;
+          } else {
+            // Add as new device
+            existingDevicesMap.set(key, dev);
+            addedCount++;
+          }
+        });
+
+        const mergedDevices = Array.from(existingDevicesMap.values());
+
+        importDatabase({
+          departments: updatedDepts,
+          devices: mergedDevices
+        });
+
+        showAlert('success', `تم استيراد الجرد بنجاح! (إضافة ${addedCount} جديد، تحديث ${updatedCount} موجود)`);
+      } catch (err) {
+        showAlert('error', 'فشل في قراءة ملف CSV. تأكد من توافق الأعمدة والترميز.');
+      }
+    };
+    reader.readAsText(file, 'utf-8');
   };
 
   return (
@@ -636,14 +621,6 @@ export default function Assets() {
         {currentUser?.role === 'admin' && selectedDeptId === null && (
           <div className="flex flex-wrap items-center gap-3">
             <button
-              onClick={() => setIsDriveModalOpen(true)}
-              className="flex items-center gap-2 bg-blue-800 hover:bg-blue-900 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
-            >
-              <Cloud size={14} />
-              النسخ السحابي (Google Drive)
-            </button>
-
-            <button
               onClick={handleExportCSV}
               className="flex items-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border border-slate-200"
             >
@@ -662,7 +639,7 @@ export default function Assets() {
               type="file" 
               ref={csvImportRef} 
               onChange={handleImportCSV} 
-              accept=".csv,.xlsx,.xls,.txt" 
+              accept=".csv" 
               className="hidden" 
             />
             
@@ -1637,109 +1614,6 @@ export default function Assets() {
         </div>
       )}
 
-      {/* Bulk Import Progress Indicator Modal */}
-      {importProgress && (
-        <div className="fixed inset-0 z-[110] bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-center border border-slate-200">
-            <div className="w-14 h-14 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
-              <ImageIcon size={28} />
-            </div>
-            <h3 className="text-lg font-bold text-slate-800 mb-2">جاري استيراد ومعالجة الصور...</h3>
-            <p className="text-sm text-slate-600 mb-4 truncate font-mono" dir="ltr">
-              {importProgress.currentName}
-            </p>
-            
-            {/* Progress Bar */}
-            <div className="w-full bg-slate-100 rounded-full h-3 mb-3 overflow-hidden border border-slate-200">
-              <div
-                className="bg-blue-600 h-3 rounded-full transition-all duration-300"
-                style={{
-                  width: `${importProgress.total > 0 ? Math.round((importProgress.current / importProgress.total) * 100) : 0}%`,
-                }}
-              />
-            </div>
-            
-            <div className="flex items-center justify-between text-xs font-bold text-slate-500 mb-4 px-1">
-              <span>تمت المعالجة: {importProgress.current} من {importProgress.total}</span>
-              <span>{importProgress.total > 0 ? Math.round((importProgress.current / importProgress.total) * 100) : 0}%</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-3 rounded-xl border border-slate-200">
-              <div className="text-emerald-700 font-bold">
-                نجح: {importProgress.success} صورة
-              </div>
-              <div className="text-amber-700 font-bold">
-                غير متطابق: {importProgress.notFound} صورة
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Bulk Import Finished Modal (Requires Clicking OK) */}
-      {importCompleteModal && (
-        <div className="fixed inset-0 z-[120] bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-center border border-slate-200">
-            <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle2 size={32} />
-            </div>
-            <h3 className="text-xl font-bold text-slate-900 mb-2">اكتمل استيراد الصور</h3>
-            <p className="text-sm text-slate-600 mb-5">
-              تم الانتهاء من فحص واستيراد مجموعة الصور المحددة.
-            </p>
-
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-5 text-right space-y-2 text-sm">
-              <div className="flex justify-between items-center text-slate-700 font-bold">
-                <span>إجمالي الصور المحددة:</span>
-                <span className="bg-slate-200 text-slate-800 px-2.5 py-0.5 rounded-full text-xs">
-                  {importCompleteModal.totalCount}
-                </span>
-              </div>
-              <div className="flex justify-between items-center text-emerald-700 font-bold">
-                <span>تم استيرادها وربطها بنجاح:</span>
-                <span className="bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full text-xs">
-                  {importCompleteModal.successCount}
-                </span>
-              </div>
-              <div className="flex justify-between items-center text-amber-700 font-bold">
-                <span>لم يتم العثور على جهاز مطابق:</span>
-                <span className="bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full text-xs">
-                  {importCompleteModal.notFoundCount}
-                </span>
-              </div>
-
-              {importCompleteModal.notFoundNames.length > 0 && (
-                <div className="mt-3 pt-2 border-t border-slate-200">
-                  <span className="text-xs font-bold text-slate-500 block mb-1">
-                    أمثلة على صور لم تتطابق مع أي كود أو سريال:
-                  </span>
-                  <div className="max-h-24 overflow-y-auto text-xs text-slate-500 bg-white p-2 rounded border border-slate-200 space-y-1">
-                    {importCompleteModal.notFoundNames.slice(0, 10).map((name, idx) => (
-                      <div key={idx} className="truncate" dir="ltr">{name}</div>
-                    ))}
-                    {importCompleteModal.notFoundNames.length > 10 && (
-                      <div className="text-center font-bold text-slate-400">+ {importCompleteModal.notFoundNames.length - 10} صور أخرى</div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <button
-              onClick={() => setImportCompleteModal(null)}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition-colors cursor-pointer"
-            >
-              موافق
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Google Drive Modal */}
-      <GoogleDriveModal
-        isOpen={isDriveModalOpen}
-        onClose={() => setIsDriveModalOpen(false)}
-      />
     </div>
   );
 }

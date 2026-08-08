@@ -1,26 +1,11 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
-import { get, set as idbSet, del } from 'idb-keyval';
-import { doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { persist } from 'zustand/middleware';
+import { doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from './lib/firebase';
 import { sanitizeForFirestore } from './lib/firestoreSync';
 import { User, Department, Device, MaintenanceRequest, MaintenanceTracking } from './types';
 
-const idbStorage: StateStorage = {
-  getItem: async (name: string): Promise<string | null> => {
-    return (await get(name)) || null;
-  },
-  setItem: async (name: string, value: string): Promise<void> => {
-    await idbSet(name, value);
-  },
-  removeItem: async (name: string): Promise<void> => {
-    await del(name);
-  },
-};
-
 interface AppState {
-  _hasHydrated: boolean;
-  setHasHydrated: (state: boolean) => void;
   currentUser: User | null;
   users: User[];
   departments: Department[];
@@ -32,7 +17,7 @@ interface AppState {
   accessoriesList: string[];
   
   // Auth Actions
-  login: (username: string, password?: string) => boolean;
+  login: (username: string) => boolean;
   logout: () => void;
   
   // User Actions
@@ -63,14 +48,14 @@ interface AppState {
   addAccessory: (accessory: string) => void;
 
   // Import / Export
-  importDatabase: (data: { departments?: Department[]; devices?: Device[]; requests?: MaintenanceRequest[]; trackings?: MaintenanceTracking[]; users?: User[] }) => Promise<void>;
+  importDatabase: (data: { departments?: Department[]; devices?: Device[]; requests?: MaintenanceRequest[]; trackings?: MaintenanceTracking[]; users?: User[] }) => void;
 }
 
 const defaultUsers: User[] = [
-  { id: 'u-1', username: 'admin', password: '123', role: 'admin' },
-  { id: 'u-2', username: 'tech1', password: '123', role: 'tech' },
-  { id: 'u-3', username: 'sup1', password: '123', role: 'supervisor' },
-  { id: 'u-4', username: 'sup2', password: '123', role: 'supervisor' },
+  { id: 'u-1', username: 'admin', role: 'admin' },
+  { id: 'u-2', username: 'tech1', role: 'tech' },
+  { id: 'u-3', username: 'sup1', role: 'supervisor' },
+  { id: 'u-4', username: 'sup2', role: 'supervisor' },
 ];
 
 const defaultDepartments: Department[] = [];
@@ -78,13 +63,9 @@ const defaultDevices: Device[] = [];
 const defaultRequests: MaintenanceRequest[] = [];
 const defaultTrackings: MaintenanceTracking[] = [];
 
-const getDocId = (id: string) => String(id || '').replace(/\//g, '_');
-
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
-      _hasHydrated: false,
-      setHasHydrated: (state) => set({ _hasHydrated: state }),
       currentUser: null,
       users: defaultUsers,
       departments: defaultDepartments,
@@ -95,13 +76,9 @@ export const useAppStore = create<AppState>()(
       trackingCategories: ['تكييف', 'زيوت وفلاتر', 'بطاريات'],
       accessoriesList: ['ECG Cable', 'SPO2', 'bp Cuff', 'Bottle', '2 Bottle'],
 
-      login: (username, password) => {
+      login: (username) => {
         const found = get().users.find((u) => u.username.toLowerCase() === username.toLowerCase());
         if (found) {
-          // If the user has a password in DB, check it.
-          if (found.password && found.password !== password) {
-            return false;
-          }
           set({ currentUser: found });
           return true;
         }
@@ -113,7 +90,7 @@ export const useAppStore = create<AppState>()(
       // User Actions
       addUser: (user) => {
         const newUser = { ...user, id: `u-${Date.now()}` };
-        setDoc(doc(db, 'users', getDocId(newUser.id)), sanitizeForFirestore(newUser));
+        setDoc(doc(db, 'users', newUser.id), sanitizeForFirestore(newUser));
         set((state) => ({ users: [...state.users, newUser] }));
       },
       
@@ -121,7 +98,7 @@ export const useAppStore = create<AppState>()(
         const current = get().users.find((u) => u.id === id);
         if (current) {
           const merged = { ...current, ...updatedUser };
-          setDoc(doc(db, 'users', getDocId(id)), sanitizeForFirestore(merged));
+          setDoc(doc(db, 'users', id), sanitizeForFirestore(merged));
         }
         set((state) => ({
           users: state.users.map((u) => u.id === id ? { ...u, ...updatedUser } : u),
@@ -130,7 +107,7 @@ export const useAppStore = create<AppState>()(
       },
 
       deleteUser: (id) => {
-        deleteDoc(doc(db, 'users', getDocId(id)));
+        deleteDoc(doc(db, 'users', id));
         set((state) => ({
           users: state.users.filter((u) => u.id !== id),
           currentUser: state.currentUser?.id === id ? null : state.currentUser
@@ -145,7 +122,7 @@ export const useAppStore = create<AppState>()(
           return;
         }
         const newDept: Department = { id: `d-${Date.now()}`, name: name.trim(), ...(parentId ? { parentId } : {}) };
-        setDoc(doc(db, 'departments', getDocId(newDept.id)), sanitizeForFirestore(newDept));
+        setDoc(doc(db, 'departments', newDept.id), sanitizeForFirestore(newDept));
         set((state) => ({ departments: [...state.departments, newDept] }));
       },
 
@@ -158,7 +135,7 @@ export const useAppStore = create<AppState>()(
         const current = get().departments.find((d) => d.id === id);
         const merged: Department = { ...(current || { id, name: name.trim() }), name: name.trim(), ...(parentId ? { parentId } : {}) };
         if (!parentId && merged.parentId) delete merged.parentId;
-        setDoc(doc(db, 'departments', getDocId(id)), sanitizeForFirestore(merged));
+        setDoc(doc(db, 'departments', id), sanitizeForFirestore(merged));
         set((state) => ({
           departments: state.departments.map((d) => d.id === id ? merged : d)
         }));
@@ -170,7 +147,7 @@ export const useAppStore = create<AppState>()(
         if (hasDevices || hasChildren) {
           return { success: false, message: 'لا يمكنك مسح القسم بسبب وجود أصول، أجهزة، أو عيادات فرعية تابعة له' };
         }
-        deleteDoc(doc(db, 'departments', getDocId(id)));
+        deleteDoc(doc(db, 'departments', id));
         set((state) => ({
           departments: state.departments.filter((d) => d.id !== id)
         }));
@@ -185,7 +162,7 @@ export const useAppStore = create<AppState>()(
           id: `dev-${Date.now()}`,
           difference: diff
         };
-        setDoc(doc(db, 'devices', getDocId(newDevice.id)), sanitizeForFirestore(newDevice));
+        setDoc(doc(db, 'devices', newDevice.id), sanitizeForFirestore(newDevice));
         set((state) => ({ devices: [...state.devices, newDevice] }));
       },
 
@@ -194,7 +171,7 @@ export const useAppStore = create<AppState>()(
         if (current) {
           const merged = { ...current, ...updatedFields };
           merged.difference = merged.bookQty - merged.currentQty;
-          setDoc(doc(db, 'devices', getDocId(id)), sanitizeForFirestore(merged));
+          setDoc(doc(db, 'devices', id), sanitizeForFirestore(merged));
         }
         set((state) => ({
           devices: state.devices.map((dev) => {
@@ -209,9 +186,9 @@ export const useAppStore = create<AppState>()(
       },
 
       deleteDevice: (id) => {
-        deleteDoc(doc(db, 'devices', getDocId(id)));
-        get().requests.filter(r => r.deviceId === id).forEach(r => deleteDoc(doc(db, 'requests', getDocId(r.id))));
-        get().trackings.filter(t => t.deviceId === id).forEach(t => deleteDoc(doc(db, 'trackings', getDocId(t.id))));
+        deleteDoc(doc(db, 'devices', id));
+        get().requests.filter(r => r.deviceId === id).forEach(r => deleteDoc(doc(db, 'requests', r.id)));
+        get().trackings.filter(t => t.deviceId === id).forEach(t => deleteDoc(doc(db, 'trackings', t.id)));
 
         set((state) => ({
           devices: state.devices.filter((dev) => dev.id !== id),
@@ -227,7 +204,7 @@ export const useAppStore = create<AppState>()(
           id: `req-${Date.now()}`,
           status: 'pending'
         };
-        setDoc(doc(db, 'requests', getDocId(newReq.id)), sanitizeForFirestore(newReq));
+        setDoc(doc(db, 'requests', newReq.id), sanitizeForFirestore(newReq));
         set((state) => ({ requests: [newReq, ...state.requests] }));
       },
 
@@ -235,7 +212,7 @@ export const useAppStore = create<AppState>()(
         const current = get().requests.find((r) => r.id === id);
         if (current) {
           const merged = { ...current, ...fields };
-          setDoc(doc(db, 'requests', getDocId(id)), sanitizeForFirestore(merged));
+          setDoc(doc(db, 'requests', id), sanitizeForFirestore(merged));
         }
         set((state) => ({
           requests: state.requests.map((r) => r.id === id ? { ...r, ...fields } : r)
@@ -243,7 +220,7 @@ export const useAppStore = create<AppState>()(
       },
 
       deleteMaintenanceRequest: (id) => {
-        deleteDoc(doc(db, 'requests', getDocId(id)));
+        deleteDoc(doc(db, 'requests', id));
         set((state) => ({ requests: state.requests.filter((r) => r.id !== id) }));
       },
 
@@ -253,12 +230,12 @@ export const useAppStore = create<AppState>()(
           ...track,
           id: `t-${Date.now()}`
         };
-        setDoc(doc(db, 'trackings', getDocId(newTrack.id)), sanitizeForFirestore(newTrack));
+        setDoc(doc(db, 'trackings', newTrack.id), sanitizeForFirestore(newTrack));
         set((state) => ({ trackings: [newTrack, ...state.trackings] }));
       },
 
       deleteTracking: (id) => {
-        deleteDoc(doc(db, 'trackings', getDocId(id)));
+        deleteDoc(doc(db, 'trackings', id));
         set((state) => ({ trackings: state.trackings.filter((t) => t.id !== id) }));
       },
 
@@ -296,8 +273,22 @@ export const useAppStore = create<AppState>()(
       },
 
       // Import database action
-      importDatabase: async (data) => {
-        // 1. Update Zustand store IMMEDIATELY so UI updates instantly
+      importDatabase: (data) => {
+        if (data.departments) {
+          data.departments.forEach(d => setDoc(doc(db, 'departments', d.id), sanitizeForFirestore(d)));
+        }
+        if (data.devices) {
+          data.devices.forEach(dev => setDoc(doc(db, 'devices', dev.id), sanitizeForFirestore(dev)));
+        }
+        if (data.requests) {
+          data.requests.forEach(r => setDoc(doc(db, 'requests', r.id), sanitizeForFirestore(r)));
+        }
+        if (data.trackings) {
+          data.trackings.forEach(t => setDoc(doc(db, 'trackings', t.id), sanitizeForFirestore(t)));
+        }
+        if (data.users) {
+          data.users.forEach(u => setDoc(doc(db, 'users', u.id), sanitizeForFirestore(u)));
+        }
         set((state) => ({
           departments: data.departments || state.departments,
           devices: data.devices || state.devices,
@@ -305,71 +296,11 @@ export const useAppStore = create<AppState>()(
           trackings: data.trackings || state.trackings,
           users: data.users || state.users,
         }));
-
-        // 2. Sync to Firestore in background using writeBatch
-        const collections: Array<{ name: string; items?: any[] }> = [
-          { name: 'departments', items: data.departments },
-          { name: 'devices', items: data.devices },
-          { name: 'requests', items: data.requests },
-          { name: 'trackings', items: data.trackings },
-          { name: 'users', items: data.users },
-        ];
-
-        try {
-          for (const col of collections) {
-            if (col.items && Array.isArray(col.items)) {
-              const items = col.items;
-              const BATCH_SIZE = 100;
-              for (let i = 0; i < items.length; i += BATCH_SIZE) {
-                const chunk = items.slice(i, i + BATCH_SIZE);
-                const batch = writeBatch(db);
-                let addedCount = 0;
-                for (const item of chunk) {
-                  if (!item || !item.id) continue;
-                  const docId = getDocId(item.id);
-                  const cleanItem = sanitizeForFirestore(item);
-                  batch.set(doc(db, col.name, docId), cleanItem);
-                  addedCount++;
-                }
-                if (addedCount > 0) {
-                  await batch.commit();
-                }
-              }
-            }
-          }
-        } catch (err) {
-          console.error('Failed batch commit to Firestore, using fallback:', err);
-          for (const col of collections) {
-            if (col.items && Array.isArray(col.items)) {
-              for (const item of col.items) {
-                if (!item || !item.id) continue;
-                const docId = getDocId(item.id);
-                setDoc(doc(db, col.name, docId), sanitizeForFirestore(item)).catch((e) => console.error(e));
-              }
-            }
-          }
-        }
-      },
+      }
     }),
     {
-      name: 'maintenance-cloud-auth-v1',
-      storage: createJSONStorage(() => idbStorage),
-      onRehydrateStorage: () => (state) => {
-        if (state) {
-          state.setHasHydrated(true);
-        }
-      },
-      partialize: (state) => ({
-        currentUser: state.currentUser,
-        users: state.users,
-        departments: state.departments,
-        devices: state.devices,
-        requests: state.requests,
-        trackings: state.trackings,
-        oilFilterInterval: state.oilFilterInterval,
-        trackingCategories: state.trackingCategories,
-        accessoriesList: state.accessoriesList,
-      }),
+      name: 'maintenance-storage-v2',
+      partialize: (state) => ({ currentUser: state.currentUser }),
     }
   )
 );

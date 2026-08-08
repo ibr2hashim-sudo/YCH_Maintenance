@@ -1,15 +1,12 @@
-import React, { useState } from 'react';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store';
 import { resetFirestoreDatabase } from '../lib/firestoreSync';
-import { LayoutDashboard, Wrench, Settings2, LogOut, ClipboardList, User, ArrowRight, RefreshCw, Cloud } from 'lucide-react';
-import GoogleDriveModal from './GoogleDriveModal';
+import { LayoutDashboard, Wrench, Settings2, LogOut, ClipboardList, User, ArrowRight, RefreshCw } from 'lucide-react';
 
 export default function Layout() {
   const { currentUser, logout } = useAppStore();
   const location = useLocation();
   const navigate = useNavigate();
-  const [isDriveModalOpen, setIsDriveModalOpen] = useState(false);
 
   const isHome = location.pathname === '/';
 
@@ -84,14 +81,6 @@ export default function Layout() {
                 متابعة الصيانة الدورية
               </NavLink>
             )}
-
-            <button
-              onClick={() => setIsDriveModalOpen(true)}
-              className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-slate-900 hover:bg-slate-100 hover:text-black border border-transparent hover:border-slate-300 w-full cursor-pointer text-right"
-            >
-              <Cloud size={20} className="text-blue-800" />
-              النسخ السحابي (Drive)
-            </button>
           </nav>
         </div>
 
@@ -111,17 +100,17 @@ export default function Layout() {
                   }
                 }
               }}
-              className="flex items-center justify-center gap-3 px-4 py-3 w-full text-amber-700 font-bold hover:bg-amber-50 rounded-xl transition-colors border border-amber-300 hover:border-amber-500 cursor-pointer text-sm"
+              className="flex items-center justify-center gap-3 px-4 py-3 w-full text-amber-700 font-bold hover:bg-amber-50 rounded-xl transition-colors border border-amber-300 hover:border-amber-500 cursor-pointer"
             >
-              <RefreshCw size={18} />
-              استعادة ضبط المصنع
+              <RefreshCw size={20} />
+              Reset Data
             </button>
           )}
           <button 
             onClick={logout}
-            className="flex items-center justify-center gap-3 px-4 py-3 w-full text-red-700 font-bold hover:bg-red-50 rounded-xl transition-colors border border-red-300 hover:border-red-500 cursor-pointer text-sm"
+            className="flex items-center justify-center gap-3 px-4 py-3 w-full text-red-700 font-bold hover:bg-red-50 rounded-xl transition-colors border border-red-300 hover:border-red-500 cursor-pointer"
           >
-            <LogOut size={18} />
+            <LogOut size={20} />
             تسجيل الخروج
           </button>
         </div>
@@ -134,36 +123,21 @@ export default function Layout() {
             <h1 className="text-2xl font-bold text-black">لوحة التحكم</h1>
             <p className="text-slate-900 mt-1 font-bold">نظام إدارة متكامل للعهد والمتابعة</p>
           </div>
-          <div className="flex items-center gap-3">
+          {!isHome && (
             <button
-              onClick={() => setIsDriveModalOpen(true)}
-              className="flex items-center gap-2 bg-blue-800 hover:bg-blue-900 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer shadow-sm"
+              onClick={() => navigate('/')}
+              className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-black px-4 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer border border-slate-400 shadow-sm"
             >
-              <Cloud size={18} />
-              النسخ السحابي (Google Drive)
+              <ArrowRight size={18} className="text-black" />
+              العودة للرئيسية
             </button>
-            {!isHome && (
-              <button
-                onClick={() => navigate('/')}
-                className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-black px-4 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer border border-slate-400 shadow-sm"
-              >
-                <ArrowRight size={18} className="text-black" />
-                العودة للرئيسية
-              </button>
-            )}
-          </div>
+          )}
         </header>
         
         <div className="flex-1 overflow-auto px-8 pb-8 z-0">
           <Outlet />
         </div>
       </main>
-
-      {/* Google Drive Modal */}
-      <GoogleDriveModal
-        isOpen={isDriveModalOpen}
-        onClose={() => setIsDriveModalOpen(false)}
-      />
     </div>
   );
 }
