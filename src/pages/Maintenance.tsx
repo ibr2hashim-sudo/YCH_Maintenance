@@ -32,6 +32,28 @@ export default function Maintenance() {
   // Print view state
   const [printRequest, setPrintRequest] = useState<MaintenanceRequest | null>(null);
 
+  const handlePrintReport = (isPdfPrompt = false) => {
+    if (!printRequest) return;
+    const dept = departments.find((d) => d.id === printRequest.departmentId)?.name || 'القسم';
+    const dev = devices.find((d) => d.id === printRequest.deviceId)?.name || 'الجهاز';
+    const reqDate = printRequest.date || new Date().toISOString().split('T')[0];
+
+    const originalTitle = document.title;
+    // Set document title so PDF save dialog defaults to this formatted name
+    document.title = `${dept} - ${dev} - ${reqDate}`;
+
+    if (isPdfPrompt) {
+      showAlert('success', 'يرجى اختيار (حفظ بتنسيق PDF / Save as PDF) من نافذة الطباعة.');
+    }
+
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => {
+        document.title = originalTitle;
+      }, 1000);
+    }, 150);
+  };
+
   // Filter requests based on role
   const filteredRequests = requests.filter((req) => {
     if (currentUser?.role === 'supervisor') {
@@ -538,8 +560,8 @@ export default function Maintenance() {
 
       {/* PRINT DIALOG OVERLAY (BEAUTIFUL PHYSICAL REPORT CARD) */}
       {printRequest && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto" dir="rtl">
-          <div className="bg-white rounded-3xl p-8 max-w-3xl w-full text-slate-800 relative shadow-2xl space-y-6">
+        <div id="printable-report-wrapper" className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto" dir="rtl">
+          <div id="printable-report" className="bg-white rounded-3xl p-8 max-w-3xl w-full text-slate-800 relative shadow-2xl space-y-6">
             <button
               onClick={() => setPrintRequest(null)}
               className="absolute top-6 left-6 text-slate-400 hover:text-slate-800 p-2 rounded-full hover:bg-slate-100 transition-colors cursor-pointer print:hidden"
@@ -638,17 +660,14 @@ export default function Maintenance() {
             {/* Print trigger controls */}
             <div className="pt-4 border-t flex justify-end gap-3 print:hidden">
               <button
-                onClick={() => {
-                  showAlert('success', 'يرجى اختيار (Save as PDF) أو (حفظ بتنسيق PDF) من نافذة الطباعة.');
-                  setTimeout(() => window.print(), 500);
-                }}
+                onClick={() => handlePrintReport(true)}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer transition-all shadow"
               >
                 <Download size={14} />
                 حفظ كملف PDF
               </button>
               <button
-                onClick={() => window.print()}
+                onClick={() => handlePrintReport(false)}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer transition-all shadow"
               >
                 <Printer size={14} />
