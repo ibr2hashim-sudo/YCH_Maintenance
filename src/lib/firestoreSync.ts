@@ -13,7 +13,9 @@ import { User, Department, Device, MaintenanceRequest, MaintenanceTracking } fro
 
 export function sanitizeForFirestore(obj: any): any {
   if (obj === null || obj === undefined) return null;
+  if (typeof obj === 'function' || typeof obj === 'symbol') return null;
   if (typeof obj !== 'object') return obj;
+  if (obj instanceof Date) return obj.toISOString();
   if (Array.isArray(obj)) {
     return obj
       .map(item => (item === undefined ? null : sanitizeForFirestore(item)))
@@ -22,7 +24,7 @@ export function sanitizeForFirestore(obj: any): any {
   const result: Record<string, any> = {};
   for (const key of Object.keys(obj)) {
     const val = obj[key];
-    if (val !== undefined) {
+    if (val !== undefined && typeof val !== 'function') {
       result[key] = sanitizeForFirestore(val);
     }
   }
@@ -93,39 +95,75 @@ export function initFirestoreSync() {
   if (initialized) return;
   initialized = true;
 
+  // Helper to get sanitized doc id
+  const getDocId = (id: string) => String(id).replace(/\//g, '_');
+
   // 1. Sync Users directly from Firestore
   onSnapshot(collection(db, 'users'), (snapshot) => {
     if (!snapshot.empty) {
-      const remoteUsers = snapshot.docs.map(doc => doc.data() as User);
+      const remoteUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
       useAppStore.setState({ users: remoteUsers });
     } else {
-      defaultUsers.forEach(u => setDoc(doc(db, 'users', u.id), sanitizeForFirestore(u)).catch(() => {}));
-      useAppStore.setState({ users: defaultUsers });
+      const localUsers = useAppStore.getState().users;
+      if (localUsers && localUsers.length > 0) {
+        localUsers.forEach(u => setDoc(doc(db, 'users', getDocId(u.id)), sanitizeForFirestore(u)).catch(() => {}));
+      } else {
+        defaultUsers.forEach(u => setDoc(doc(db, 'users', u.id), sanitizeForFirestore(u)).catch(() => {}));
+        useAppStore.setState({ users: defaultUsers });
+      }
     }
   }, (err) => console.warn('Users snapshot error:', err));
 
   // 2. Sync Departments directly from Firestore
   onSnapshot(collection(db, 'departments'), (snapshot) => {
-    const remoteDepts = snapshot.docs.map(doc => doc.data() as Department);
-    useAppStore.setState({ departments: remoteDepts });
+    if (!snapshot.empty) {
+      const remoteDepts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Department));
+      useAppStore.setState({ departments: remoteDepts });
+    } else {
+      const localDepts = useAppStore.getState().departments;
+      if (localDepts && localDepts.length > 0) {
+        localDepts.forEach(d => setDoc(doc(db, 'departments', getDocId(d.id)), sanitizeForFirestore(d)).catch(() => {}));
+      }
+    }
   }, (err) => console.warn('Departments snapshot error:', err));
 
   // 3. Sync Devices directly from Firestore
   onSnapshot(collection(db, 'devices'), (snapshot) => {
-    const remoteDevices = snapshot.docs.map(doc => doc.data() as Device);
-    useAppStore.setState({ devices: remoteDevices });
+    if (!snapshot.empty) {
+      const remoteDevices = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Device));
+      useAppStore.setState({ devices: remoteDevices });
+    } else {
+      const localDevices = useAppStore.getState().devices;
+      if (localDevices && localDevices.length > 0) {
+        localDevices.forEach(dev => setDoc(doc(db, 'devices', getDocId(dev.id)), sanitizeForFirestore(dev)).catch(() => {}));
+      }
+    }
   }, (err) => console.warn('Devices snapshot error:', err));
 
   // 4. Sync Maintenance Requests directly from Firestore
   onSnapshot(collection(db, 'requests'), (snapshot) => {
-    const remoteRequests = snapshot.docs.map(doc => doc.data() as MaintenanceRequest);
-    useAppStore.setState({ requests: remoteRequests });
+    if (!snapshot.empty) {
+      const remoteRequests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MaintenanceRequest));
+      useAppStore.setState({ requests: remoteRequests });
+    } else {
+      const localRequests = useAppStore.getState().requests;
+      if (localRequests && localRequests.length > 0) {
+        localRequests.forEach(r => setDoc(doc(db, 'requests', getDocId(r.id)), sanitizeForFirestore(r)).catch(() => {}));
+      }
+    }
   }, (err) => console.warn('Requests snapshot error:', err));
 
   // 5. Sync Tracking directly from Firestore
   onSnapshot(collection(db, 'trackings'), (snapshot) => {
-    const remoteTrackings = snapshot.docs.map(doc => doc.data() as MaintenanceTracking);
-    useAppStore.setState({ trackings: remoteTrackings });
+    if (!snapshot.empty) {
+      const remoteTrackings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MaintenanceTracking));
+      useAppStore.setState({ trackings: remoteTrackings });
+    } else {
+      const localTrackings = useAppStore.getState().trackings;
+      if (localTrackings && localTrackings.length > 0) {
+        localTrackings.forEach(t => setDoc(doc(db, 'trackings', getDocId(t.id)), sanitizeForFirestore(t)).catch(() => {}));
+      }
+    }
   }, (err) => console.warn('Trackings snapshot error:', err));
 
   // 6. Sync App Settings directly from Firestore
@@ -138,8 +176,13 @@ export function initFirestoreSync() {
         accessoriesList: data.accessoriesList ?? ['ECG Cable', 'SPO2', 'bp Cuff', 'Bottle', '2 Bottle']
       });
     } else {
-      setDoc(doc(db, 'appSettings', 'config'), sanitizeForFirestore(defaultSettings)).catch(() => {});
-      useAppStore.setState(defaultSettings);
+      const currentState = useAppStore.getState();
+      const settingsToSave = {
+        oilFilterInterval: currentState.oilFilterInterval || defaultSettings.oilFilterInterval,
+        trackingCategories: currentState.trackingCategories?.length ? currentState.trackingCategories : defaultSettings.trackingCategories,
+        accessoriesList: currentState.accessoriesList?.length ? currentState.accessoriesList : defaultSettings.accessoriesList
+      };
+      setDoc(doc(db, 'appSettings', 'config'), sanitizeForFirestore(settingsToSave)).catch(() => {});
     }
   }, (err) => console.warn('AppSettings snapshot error:', err));
 }
