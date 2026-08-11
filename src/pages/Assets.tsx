@@ -741,8 +741,8 @@ export default function Assets() {
               <p className="text-slate-700 text-sm mt-1">يوجد {deptDevices.length} أجهزة طبية معرفة للعهدة.</p>
             </div>
 
-            {/* Only admins can add devices */}
-            {currentUser?.role === 'admin' && (
+            {/* Only admins & technicians can add devices */}
+            {currentUser?.role !== 'supervisor' && (
               <button
                 onClick={openNewDeviceForm}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-bold text-sm flex items-center gap-2 cursor-pointer transition-all shadow-md hover:shadow-lg"
@@ -964,7 +964,7 @@ export default function Assets() {
               الرجوع لقائمة الأجهزة
             </button>
             <div className="flex items-center gap-4">
-              {currentUser?.role === 'admin' && (
+              {currentUser?.role !== 'supervisor' && (
                 <button
                   onClick={openEditDeviceForm}
                   className="flex items-center gap-2 bg-blue-50 text-blue-900 hover:bg-blue-100 px-4 py-1.5 rounded-full text-sm font-bold transition-all cursor-pointer"
@@ -990,7 +990,7 @@ export default function Assets() {
               <div>
                 <div className="flex justify-between items-center mb-3">
                   <h3 className="font-bold text-slate-800 text-lg">صورة الجهاز</h3>
-                  {currentUser?.role === 'admin' && (
+                  {currentUser?.role !== 'supervisor' && (
                     <>
                       <button
                         onClick={() => updateImageRef.current?.click()}
@@ -1109,7 +1109,7 @@ export default function Assets() {
           </div>
 
           {/* Action Footer for Editing & Deleting Devices */}
-          {currentUser?.role === 'admin' && (
+          {currentUser?.role !== 'supervisor' && (
             <div className="pt-8 border-t border-slate-200 flex justify-end items-center">
               <button
                 onClick={handleDeleteDevice}
