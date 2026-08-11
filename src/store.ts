@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from './lib/firebase';
 import { sanitizeForFirestore } from './lib/firestoreSync';
 import { User, Department, Device, MaintenanceRequest, MaintenanceTracking } from './types';
@@ -17,7 +17,7 @@ interface AppState {
   accessoriesList: string[];
   
   // Auth Actions
-  login: (username: string, password?: string) => boolean;
+  login: (username: string) => boolean;
   logout: () => void;
   
   // User Actions
@@ -48,14 +48,14 @@ interface AppState {
   addAccessory: (accessory: string) => void;
 
   // Import / Export
-  importDatabase: (data: { departments?: Department[]; devices?: Device[]; requests?: MaintenanceRequest[]; trackings?: MaintenanceTracking[]; users?: User[] }) => Promise<void>;
+  importDatabase: (data: { departments?: Department[]; devices?: Device[]; requests?: MaintenanceRequest[]; trackings?: MaintenanceTracking[]; users?: User[] }) => void;
 }
 
 const defaultUsers: User[] = [
-  { id: 'u-1', username: 'admin', password: '123', role: 'admin' },
-  { id: 'u-2', username: 'tech1', password: '123', role: 'tech' },
-  { id: 'u-3', username: 'sup1', password: '123', role: 'supervisor' },
-  { id: 'u-4', username: 'sup2', password: '123', role: 'supervisor' },
+  { id: 'u-1', username: 'admin', role: 'admin' },
+  { id: 'u-2', username: 'tech1', role: 'tech' },
+  { id: 'u-3', username: 'sup1', role: 'supervisor' },
+  { id: 'u-4', username: 'sup2', role: 'supervisor' },
 ];
 
 const defaultDepartments: Department[] = [];
@@ -76,13 +76,9 @@ export const useAppStore = create<AppState>()(
       trackingCategories: ['تكييف', 'زيوت وفلاتر', 'بطاريات'],
       accessoriesList: ['ECG Cable', 'SPO2', 'bp Cuff', 'Bottle', '2 Bottle'],
 
-      login: (username, password) => {
+      login: (username) => {
         const found = get().users.find((u) => u.username.toLowerCase() === username.toLowerCase());
         if (found) {
-          // If the user has a password in DB, check it.
-          if (found.password && found.password !== password) {
-            return false;
-          }
           set({ currentUser: found });
           return true;
         }
@@ -277,44 +273,22 @@ export const useAppStore = create<AppState>()(
       },
 
       // Import database action
-      importDatabase: async (data) => {
-        const collections: Array<{ name: string; items?: any[] }> = [
-          { name: 'departments', items: data.departments },
-          { name: 'devices', items: data.devices },
-          { name: 'requests', items: data.requests },
-          { name: 'trackings', items: data.trackings },
-          { name: 'users', items: data.users },
-        ];
-
-        try {
-          let batch = writeBatch(db);
-          let count = 0;
-
-          for (const col of collections) {
-            if (col.items && Array.isArray(col.items)) {
-              for (const item of col.items) {
-                if (!item || !item.id) continue;
-                const cleanItem = sanitizeForFirestore(item);
-                const docRef = doc(db, col.name, item.id);
-                batch.set(docRef, cleanItem);
-                count++;
-
-                if (count >= 400) {
-                  await batch.commit();
-                  batch = writeBatch(db);
-                  count = 0;
-                }
-              }
-            }
-          }
-
-          if (count > 0) {
-            await batch.commit();
-          }
-        } catch (err) {
-          console.error('Failed to commit imported data to Firestore:', err);
+      importDatabase: (data) => {
+        if (data.departments) {
+          data.departments.forEach(d => setDoc(doc(db, 'departments', d.id), sanitizeForFirestore(d)));
         }
-
+        if (data.devices) {
+          data.devices.forEach(dev => setDoc(doc(db, 'devices', dev.id), sanitizeForFirestore(dev)));
+        }
+        if (data.requests) {
+          data.requests.forEach(r => setDoc(doc(db, 'requests', r.id), sanitizeForFirestore(r)));
+        }
+        if (data.trackings) {
+          data.trackings.forEach(t => setDoc(doc(db, 'trackings', t.id), sanitizeForFirestore(t)));
+        }
+        if (data.users) {
+          data.users.forEach(u => setDoc(doc(db, 'users', u.id), sanitizeForFirestore(u)));
+        }
         set((state) => ({
           departments: data.departments || state.departments,
           devices: data.devices || state.devices,

@@ -379,7 +379,7 @@ export default function Assets() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = async (evt) => {
+    reader.onload = (evt) => {
       try {
         const text = evt.target?.result as string;
         const lines = text.split('\n');
@@ -545,7 +545,7 @@ export default function Assets() {
 
         const mergedDevices = Array.from(existingDevicesMap.values());
 
-        await importDatabase({
+        importDatabase({
           departments: updatedDepts,
           devices: mergedDevices
         });
