@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+import * as XLSX from 'xlsx';
 import { useAppStore } from '../store';
 import { compressImage } from '../lib/firestoreSync';
 import { Device, DeviceStatus, Department } from '../types';
@@ -373,189 +374,164 @@ export default function Assets() {
     showAlert('success', 'تم تصدير ملف الجرد بنجاح!');
   };
 
-  // CSV IMPORT
-  const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // CSV / EXCEL IMPORT
+  const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      try {
-        const text = evt.target?.result as string;
-        const lines = text.split('\n');
-        if (lines.length < 2) throw new Error('الملف فارغ أو غير متوافق');
-
-        const clean = (val: string) => val ? val.replace(/^"|"$/g, '').trim() : '';
-        
-        let separator: RegExp = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
-        if (lines[0].includes('\t')) {
-          separator = /\t/;
-        } else if (lines[0].includes(';')) {
-          separator = /;(?=(?:(?:[^"]*"){2})*[^"]*$)/;
-        }
-
-        const headers = lines[0].split(separator).map(h => clean(h).toLowerCase());
-
-        const getIndex = (possibleNames: string[]) => {
-          let idx = headers.findIndex(h => possibleNames.some(name => h === name.toLowerCase()));
-          if (idx === -1) {
-            idx = headers.findIndex(h => possibleNames.some(name => h.includes(name.toLowerCase())));
-          }
-          return idx;
-        };
-
-        const idxDeptName = getIndex(['القسم', 'department', 'القسم الرئيسي']);
-        const idxSubDeptName = getIndex(['القسم الداخلي', 'العيادة', 'sub department', 'internal department', 'القسم الفرعي', 'clinic']);
-        const idxType = getIndex(['النوع', 'type']);
-        const idxName = getIndex(['اسم الجهاز', 'device name']);
-        const idxCustomId = getIndex(['id', 'code', 'كود', 'device code']);
-        
-        let idxBookQty = getIndex(['الكمية الدفترية', 'الكمية السابقة', 'book qty']);
-        let idxCurrentQty = headers.findIndex(h => h === 'الكمية الحالية' || h === 'الكمية' || h === 'qty' || h === 'current qty');
-        if (idxCurrentQty === -1) idxCurrentQty = getIndex(['الكمية الحالية', 'الكمية']);
-
-        const idxModel = getIndex(['الموديل', 'model']);
-        const idxSerialNumber = getIndex(['الرقم التسلسلي', 'serial number', 'serial']);
-        const idxCompany = getIndex(['الشركة المصنعه', 'الشركة المصنعة', 'manufacturer', 'company']);
-        const idxStatus = getIndex(['حالة الجهاز', 'الحالة', 'status']);
-        const idxCustodian = getIndex(['مستلم العهدة', 'مستلم', 'custodian']);
-        const idxAccessories = getIndex(['التوابع', 'الملحقات', 'توابع', 'accessories']);
-        const idxNotes = getIndex(['ملاحظة', 'ملاحظات', 'notes']);
-
-        const importedRows: {
-          devData: Omit<Device, 'departmentId'>;
-          mainDeptName: string;
-          subDeptName: string;
-        }[] = [];
-        
-        // Skip header
-        for (let i = 1; i < lines.length; i++) {
-          const line = lines[i].trim();
-          if (!line) continue;
-          
-          const columns = line.split(separator);
-          
-          const getCol = (idx: number) => idx !== -1 && columns[idx] ? clean(columns[idx]) : '';
-
-          const deptName = getCol(idxDeptName) || 'عام';
-          const subDeptName = getCol(idxSubDeptName);
-          const type = getCol(idxType);
-          const name = getCol(idxName);
-          const customId = getCol(idxCustomId);
-          const currentQty = parseInt(getCol(idxCurrentQty)) || 0;
-          const bookQty = parseInt(getCol(idxBookQty)) || 0;
-          const model = getCol(idxModel);
-          const serialNumber = getCol(idxSerialNumber);
-          const company = getCol(idxCompany);
-          const statusVal = getCol(idxStatus);
-          const status = (statusVal as DeviceStatus) || 'شغال';
-          const custodian = getCol(idxCustodian);
-          const accessoriesRaw = getCol(idxAccessories);
-          const notes = getCol(idxNotes);
-
-          importedRows.push({
-            mainDeptName: deptName,
-            subDeptName: subDeptName,
-            devData: {
-              id: `dev-imported-${i}-${Date.now()}`,
-              name,
-              type,
-              customId,
-              currentQty,
-              bookQty,
-              difference: bookQty - currentQty,
-              model,
-              serialNumber,
-              company,
-              status,
-              custodian,
-              accessories: accessoriesRaw ? accessoriesRaw.split(' / ') : [],
-              notes
-            }
-          });
-        }
-
-        // Map department names to IDs and construct hierarchy automatically
-        const updatedDepts = [...departments];
-
-        const getOrCreateDepartment = (name: string, parentId?: string): string => {
-          const trimmed = name.trim();
-          let found = updatedDepts.find((d) => d.name.trim().toLowerCase() === trimmed.toLowerCase());
-          if (!found) {
-            const newId = `d-imp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-            const newDept: Department = { id: newId, name: trimmed, ...(parentId ? { parentId } : {}) };
-            updatedDepts.push(newDept);
-            return newId;
-          }
-          return found.id;
-        };
-
-        const importedDevices: Device[] = [];
-
-        importedRows.forEach((row) => {
-          const mainName = row.mainDeptName.trim() || 'عام';
-          const subName = row.subDeptName ? row.subDeptName.trim() : '';
-
-          const mainId = getOrCreateDepartment(mainName, undefined);
-          let targetDeptId = mainId;
-
-          if (subName && subName !== mainName) {
-            targetDeptId = getOrCreateDepartment(subName, mainId);
-          }
-
-          importedDevices.push({
-            ...row.devData,
-            departmentId: targetDeptId
-          });
-        });
-
-        // Resolve device department IDs and merge/update by customId to prevent duplicate IDs
-        const existingDevicesMap = new Map<string, Device>();
-        devices.forEach(dev => {
-          if (dev.customId) {
-            existingDevicesMap.set(dev.customId.trim().toLowerCase(), dev);
-          } else {
-            existingDevicesMap.set(dev.name.trim().toLowerCase(), dev);
-          }
-        });
-
-        let updatedCount = 0;
-        let addedCount = 0;
-
-        importedDevices.forEach((dev) => {
-          const key = dev.customId ? dev.customId.trim().toLowerCase() : dev.name.trim().toLowerCase();
-
-          if (existingDevicesMap.has(key)) {
-            // Update existing device while preserving its original ID and image
-            const existingDev = existingDevicesMap.get(key)!;
-            existingDevicesMap.set(key, {
-              ...existingDev,
-              ...dev,
-              id: existingDev.id,
-              departmentId: dev.departmentId,
-              imageUrl: existingDev.imageUrl || dev.imageUrl
-            });
-            updatedCount++;
-          } else {
-            // Add as new device
-            existingDevicesMap.set(key, dev);
-            addedCount++;
-          }
-        });
-
-        const mergedDevices = Array.from(existingDevicesMap.values());
-
-        importDatabase({
-          departments: updatedDepts,
-          devices: mergedDevices
-        });
-
-        showAlert('success', `تم استيراد الجرد بنجاح! (إضافة ${addedCount} جديد، تحديث ${updatedCount} موجود)`);
-      } catch (err) {
-        showAlert('error', 'فشل في قراءة ملف CSV. تأكد من توافق الأعمدة والترميز.');
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: 'array' });
+      if (!workbook.SheetNames || !workbook.SheetNames.length) {
+        throw new Error('الملف فارغ');
       }
-    };
-    reader.readAsText(file, 'utf-8');
+
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const jsonRows = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet, { defval: '' });
+
+      if (!jsonRows || jsonRows.length === 0) {
+        throw new Error('الملف لا يحتوي على بيانات قابلة للقراءة');
+      }
+
+      const getValue = (row: Record<string, any>, keys: string[]): string => {
+        const rowKeys = Object.keys(row);
+        for (const k of keys) {
+          const matchKey = rowKeys.find(
+            rk => rk.trim().toLowerCase() === k.trim().toLowerCase() || rk.trim().toLowerCase().includes(k.trim().toLowerCase())
+          );
+          if (matchKey && row[matchKey] !== undefined && row[matchKey] !== null) {
+            return String(row[matchKey]).trim();
+          }
+        }
+        return '';
+      };
+
+      const importedRows: {
+        devData: Omit<Device, 'departmentId'>;
+        mainDeptName: string;
+        subDeptName: string;
+      }[] = [];
+
+      jsonRows.forEach((row, i) => {
+        const mainDeptName = getValue(row, ['القسم الرئيسي', 'القسم', 'department', 'dept', 'قسم']) || 'عام';
+        const subDeptName = getValue(row, ['القسم الداخلي', 'العيادة', 'sub department', 'clinic', 'القسم الفرعي', 'فرع']);
+        const type = getValue(row, ['النوع', 'نوع الجهاز', 'type']);
+        const name = getValue(row, ['اسم الجهاز', 'الجهاز', 'device name', 'device', 'اسم']) || `جهاز مستورد ${i + 1}`;
+        const customId = getValue(row, ['كود', 'code', 'id', 'device code', 'الرقم المرجعي', 'كود الجهاز']);
+        const currentQty = parseInt(getValue(row, ['الكمية الحالية', 'الكمية', 'current qty', 'qty', 'العدد'])) || 0;
+        const bookQty = parseInt(getValue(row, ['الكمية الدفترية', 'الكمية السابقة', 'book qty'])) || currentQty;
+        const model = getValue(row, ['الموديل', 'model']);
+        const serialNumber = getValue(row, ['الرقم التسلسلي', 'serial number', 'serial', 'سيريال']);
+        const company = getValue(row, ['الشركة المصنعه', 'الشركة المصنعة', 'manufacturer', 'company', 'الشركة']);
+        const statusVal = getValue(row, ['حالة الجهاز', 'الحالة', 'status']);
+        const status = (statusVal as DeviceStatus) || 'شغال';
+        const custodian = getValue(row, ['مستلم العهدة', 'مستلم', 'custodian', 'العهدة']);
+        const accessoriesRaw = getValue(row, ['التوابع', 'الملحقات', 'توابع', 'accessories']);
+        const notes = getValue(row, ['ملاحظة', 'ملاحظات', 'notes']);
+
+        importedRows.push({
+          mainDeptName,
+          subDeptName,
+          devData: {
+            id: `dev-imported-${Date.now()}-${i}-${Math.random().toString(36).substring(2, 5)}`,
+            name,
+            type,
+            customId,
+            currentQty,
+            bookQty,
+            difference: bookQty - currentQty,
+            model,
+            serialNumber,
+            company,
+            status,
+            custodian,
+            accessories: accessoriesRaw ? accessoriesRaw.split(/[/,]/).map(a => a.trim()).filter(Boolean) : [],
+            notes
+          }
+        });
+      });
+
+      const updatedDepts = [...departments];
+
+      const getOrCreateDepartment = (name: string, parentId?: string): string => {
+        const trimmed = name.trim();
+        let found = updatedDepts.find((d) => d.name.trim().toLowerCase() === trimmed.toLowerCase());
+        if (!found) {
+          const newId = `d-imp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+          const newDept: Department = { id: newId, name: trimmed, ...(parentId ? { parentId } : {}) };
+          updatedDepts.push(newDept);
+          return newId;
+        } else if (parentId && !found.parentId) {
+          found.parentId = parentId;
+        }
+        return found.id;
+      };
+
+      const importedDevices: Device[] = [];
+
+      importedRows.forEach((row) => {
+        const mainName = row.mainDeptName.trim() || 'عام';
+        const subName = row.subDeptName ? row.subDeptName.trim() : '';
+
+        const mainId = getOrCreateDepartment(mainName, undefined);
+        let targetDeptId = mainId;
+
+        if (subName && subName !== mainName) {
+          targetDeptId = getOrCreateDepartment(subName, mainId);
+        }
+
+        importedDevices.push({
+          ...row.devData,
+          departmentId: targetDeptId
+        });
+      });
+
+      const existingDevicesMap = new Map<string, Device>();
+      devices.forEach(dev => {
+        if (dev.customId) {
+          existingDevicesMap.set(dev.customId.trim().toLowerCase(), dev);
+        } else {
+          existingDevicesMap.set(dev.name.trim().toLowerCase(), dev);
+        }
+      });
+
+      let updatedCount = 0;
+      let addedCount = 0;
+
+      importedDevices.forEach((dev) => {
+        const key = dev.customId ? dev.customId.trim().toLowerCase() : dev.name.trim().toLowerCase();
+
+        if (existingDevicesMap.has(key)) {
+          const existingDev = existingDevicesMap.get(key)!;
+          existingDevicesMap.set(key, {
+            ...existingDev,
+            ...dev,
+            id: existingDev.id,
+            departmentId: dev.departmentId,
+            imageUrl: existingDev.imageUrl || dev.imageUrl
+          });
+          updatedCount++;
+        } else {
+          existingDevicesMap.set(key, dev);
+          addedCount++;
+        }
+      });
+
+      const mergedDevices = Array.from(existingDevicesMap.values());
+
+      await importDatabase({
+        departments: updatedDepts,
+        devices: mergedDevices
+      });
+
+      showAlert('success', `تم استيراد الجرد بنجاح! (تم إضافة ${addedCount} جديد، وتحديث ${updatedCount} موجود)`);
+    } catch (err: any) {
+      console.error('Import error:', err);
+      showAlert('error', 'فشل في قراءة ملف الاستيراد. تأكد من صحة تنسيق ملف CSV أو Excel.');
+    } finally {
+      e.target.value = '';
+    }
   };
 
   return (
@@ -639,7 +615,7 @@ export default function Assets() {
               type="file" 
               ref={csvImportRef} 
               onChange={handleImportCSV} 
-              accept=".csv" 
+              accept=".csv,.xlsx,.xls,.txt" 
               className="hidden" 
             />
             
