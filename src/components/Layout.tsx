@@ -1,12 +1,29 @@
+import { useState } from 'react';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store';
-import { resetFirestoreDatabase } from '../lib/firestoreSync';
-import { LayoutDashboard, Wrench, Settings2, LogOut, ClipboardList, User, ArrowRight, RefreshCw } from 'lucide-react';
+import { resetFirestoreDatabase, syncAllToCloud } from '../lib/firestoreSync';
+import { LayoutDashboard, Wrench, Settings2, LogOut, ClipboardList, User, ArrowRight, RefreshCw, Cloud, CheckCircle2 } from 'lucide-react';
 
 export default function Layout() {
   const { currentUser, logout } = useAppStore();
   const location = useLocation();
   const navigate = useNavigate();
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncSuccess, setSyncSuccess] = useState(false);
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    setSyncSuccess(false);
+    try {
+      await syncAllToCloud();
+      setSyncSuccess(true);
+      setTimeout(() => setSyncSuccess(false), 3000);
+    } catch (err) {
+      console.error('Manual sync failed:', err);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const isHome = location.pathname === '/';
 
@@ -85,6 +102,28 @@ export default function Layout() {
         </div>
 
         <div className="p-6 border-t border-slate-200 flex flex-col gap-3">
+          <button
+            onClick={handleManualSync}
+            disabled={isSyncing}
+            className={`flex items-center justify-center gap-3 px-4 py-3 w-full font-bold rounded-xl transition-all border cursor-pointer ${
+              syncSuccess 
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-300' 
+                : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200 hover:border-blue-400'
+            }`}
+          >
+            {syncSuccess ? (
+              <>
+                <CheckCircle2 size={20} className="text-emerald-600" />
+                <span>تمت المزامنة بنجاح</span>
+              </>
+            ) : (
+              <>
+                <Cloud size={20} className={isSyncing ? 'animate-bounce text-blue-600' : 'text-blue-600'} />
+                <span>{isSyncing ? 'جاري المزامنة...' : 'مزامنة مع السحابة'}</span>
+              </>
+            )}
+          </button>
+
           {currentUser?.role === 'admin' && (
             <button 
               onClick={async () => {
@@ -100,17 +139,17 @@ export default function Layout() {
                   }
                 }
               }}
-              className="flex items-center justify-center gap-3 px-4 py-3 w-full text-amber-700 font-bold hover:bg-amber-50 rounded-xl transition-colors border border-amber-300 hover:border-amber-500 cursor-pointer"
+              className="flex items-center justify-center gap-3 px-4 py-3 w-full text-amber-700 font-bold hover:bg-amber-50 rounded-xl transition-colors border border-amber-300 hover:border-amber-500 cursor-pointer text-sm"
             >
-              <RefreshCw size={20} />
-              Reset Data
+              <RefreshCw size={18} />
+              استعادة ضبط المصنع
             </button>
           )}
           <button 
             onClick={logout}
-            className="flex items-center justify-center gap-3 px-4 py-3 w-full text-red-700 font-bold hover:bg-red-50 rounded-xl transition-colors border border-red-300 hover:border-red-500 cursor-pointer"
+            className="flex items-center justify-center gap-3 px-4 py-3 w-full text-red-700 font-bold hover:bg-red-50 rounded-xl transition-colors border border-red-300 hover:border-red-500 cursor-pointer text-sm"
           >
-            <LogOut size={20} />
+            <LogOut size={18} />
             تسجيل الخروج
           </button>
         </div>
