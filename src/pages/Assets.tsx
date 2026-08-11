@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { useAppStore } from '../store';
-import { Device, DeviceStatus } from '../types';
+import { compressImage } from '../lib/firestoreSync';
+import { Device, DeviceStatus, Department } from '../types';
 import { 
   Plus, Edit3, Trash2, ArrowRight, Download, Upload, Image as ImageIcon, 
-  Camera, Package, Tag, FileText, CheckCircle2, AlertOctagon, X, User, Home
+  Camera, Package, Tag, FileText, CheckCircle2, AlertOctagon, X, User, Home,
+  FolderTree, Link as LinkIcon
 } from 'lucide-react';
 
 export default function Assets() {
@@ -28,6 +30,13 @@ export default function Assets() {
   const [isEditDeptOpen, setIsEditDeptOpen] = useState(false);
   const [newDeptName, setNewDeptName] = useState('');
   const [editDeptName, setEditDeptName] = useState('');
+
+  // Sub-department / Clinic linkage states
+  const [newDeptParentId, setNewDeptParentId] = useState<string | undefined>(undefined);
+  const [editDeptParentId, setEditDeptParentId] = useState<string | undefined>(undefined);
+  const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+  const [selectedDeptsToLink, setSelectedDeptsToLink] = useState<string[]>([]);
+  const [showAllChildDevices, setShowAllChildDevices] = useState(false);
 
   const [isDeviceFormOpen, setIsDeviceFormOpen] = useState(false);
   const [isEditDevice, setIsEditDevice] = useState(false);
@@ -57,12 +66,12 @@ export default function Assets() {
   const updateImageRef = useRef<HTMLInputElement>(null);
   const [alertMsg, setAlertMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Determine which departments to display based on user role
+  // Determine which departments to display based on user role (top-level only on screen 1)
   const displayedDepartments = departments.filter((dept) => {
     if (currentUser?.role === 'supervisor') {
-      return dept.id === currentUser.departmentId;
+      return dept.id === currentUser.departmentId || dept.parentId === currentUser.departmentId;
     }
-    return true;
+    return !dept.parentId; // نعرض فقط الأقسام الرئيسية في الصفحة الأولى
   });
 
   // Automatically drill supervisor into their department
@@ -70,27 +79,55 @@ export default function Assets() {
     setSelectedDeptId(currentUser.departmentId || null);
   }
 
+  // Helper to get department and all its child clinic IDs
+  const getDeptAndChildrenIds = (deptId: string): string[] => {
+    const childIds = departments.filter((d) => d.parentId === deptId).map((d) => d.id);
+    return [deptId, ...childIds];
+  };
+
   // Active Department & Devices
   const activeDept = departments.find((d) => d.id === selectedDeptId);
-  const deptDevices = devices.filter((d) => d.departmentId === selectedDeptId);
+  const parentDept = activeDept?.parentId ? departments.find((d) => d.id === activeDept.parentId) : null;
+  const childDepartments = departments.filter((d) => d.parentId === selectedDeptId);
+
+  const deptDevices = devices.filter((d) => {
+    if (!selectedDeptId) return false;
+    if (showAllChildDevices && childDepartments.length > 0) {
+      const allIds = getDeptAndChildrenIds(selectedDeptId);
+      return allIds.includes(d.departmentId);
+    }
+    return d.departmentId === selectedDeptId;
+  });
+
   const activeDevice = devices.find((d) => d.id === selectedDeviceId);
 
   // Handlers
   const handleAddDeptSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newDeptName.trim()) return;
-    addDepartment(newDeptName.trim());
+    const isDuplicate = departments.some((d) => d.name.trim().toLowerCase() === newDeptName.trim().toLowerCase());
+    if (isDuplicate) {
+      showAlert('error', 'اسم القسم أو العيادة مسجل مسبقاً! لا يمكن تكرار اسم القسم نهائياً.');
+      return;
+    }
+    addDepartment(newDeptName.trim(), newDeptParentId);
     setNewDeptName('');
+    setNewDeptParentId(undefined);
     setIsDeptModalOpen(false);
-    showAlert('success', 'تمت إضافة القسم بنجاح!');
+    showAlert('success', 'تمت إضافة القسم/العيادة بنجاح!');
   };
 
   const handleEditDeptSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editDeptName.trim() || !selectedDeptId) return;
-    updateDepartment(selectedDeptId, editDeptName.trim());
+    const isDuplicate = departments.some((d) => d.id !== selectedDeptId && d.name.trim().toLowerCase() === editDeptName.trim().toLowerCase());
+    if (isDuplicate) {
+      showAlert('error', 'اسم القسم أو العيادة مسجل مسبقاً! لا يمكن تكرار اسم القسم نهائياً.');
+      return;
+    }
+    updateDepartment(selectedDeptId, editDeptName.trim(), editDeptParentId);
     setIsEditDeptOpen(false);
-    showAlert('success', 'تم تعديل اسم القسم بنجاح!');
+    showAlert('success', 'تم تحديث بيانات القسم بنجاح!');
   };
 
   const handleDeleteDept = () => {
@@ -128,17 +165,13 @@ export default function Assets() {
           return;
         }
 
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const base64String = event.target?.result as string;
-          updateDevice(device.id, { imageUrl: base64String });
-          successCount++;
-          resolve();
-        };
-        reader.onerror = () => {
-          resolve();
-        };
-        reader.readAsDataURL(file);
+        compressImage(file, 800, 0.7)
+          .then((compressedBase64) => {
+            updateDevice(device.id, { imageUrl: compressedBase64 });
+            successCount++;
+            resolve();
+          })
+          .catch(() => resolve());
       });
     };
 
@@ -148,14 +181,15 @@ export default function Assets() {
     });
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setDevImageUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressed = await compressImage(file, 800, 0.7);
+        setDevImageUrl(compressed);
+      } catch (err) {
+        console.error(err);
+      }
     }
   };
 
@@ -266,26 +300,6 @@ export default function Assets() {
     showAlert('success', 'تم حذف الجهاز وسجلاته بنجاح!');
   };
 
-  // FULL DATABASE BACKUP
-  const handleBackupDatabase = () => {
-    const backupData = {
-      departments,
-      devices,
-      users: useAppStore.getState().users,
-      requests: useAppStore.getState().requests,
-      trackings: useAppStore.getState().trackings
-    };
-    const jsonString = JSON.stringify(backupData, null, 2);
-    const blob = new Blob([jsonString], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `نسخة_احتياطية_شاملة_${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-    showAlert('success', 'تم تصدير النسخة الاحتياطية بنجاح!');
-  };
-
   // DOWNLOAD IMAGES ZIP
   const handleDownloadImagesZip = async () => {
     try {
@@ -321,12 +335,17 @@ export default function Assets() {
   // CSV EXPORT (Arabic Compatible UTF-8 BOM)
   const handleExportCSV = () => {
     let csvContent = '\uFEFF'; // Excel Arabic Support BOM
-    csvContent += 'القسم,اسم الجهاز,ID مخصص,الكمية الحالية,الكمية الدفترية,الفارق,الموديل,الرقم التسلسلي,الشركة المصنعة,الحالة,مستلم العهدة,التوابع والملحقات,ملاحظات\n';
+    csvContent += 'القسم,القسم الداخلي,اسم الجهاز,ID مخصص,الكمية الحالية,الكمية الدفترية,الفارق,الموديل,الرقم التسلسلي,الشركة المصنعة,الحالة,مستلم العهدة,التوابع والملحقات,ملاحظات\n';
 
     devices.forEach((dev) => {
       const dept = departments.find((d) => d.id === dev.departmentId);
+      const parentDept = dept?.parentId ? departments.find((d) => d.id === dept.parentId) : null;
+      const mainDeptName = parentDept ? parentDept.name : (dept?.name || '');
+      const subDeptName = parentDept ? (dept?.name || '') : (dept?.name || '');
+
       const row = [
-        `"${dept?.name || ''}"`,
+        `"${mainDeptName}"`,
+        `"${subDeptName}"`,
         `"${dev.name}"`,
         `"${dev.customId}"`,
         dev.currentQty,
@@ -385,7 +404,8 @@ export default function Assets() {
           return idx;
         };
 
-        const idxDeptName = getIndex(['القسم', 'department']);
+        const idxDeptName = getIndex(['القسم', 'department', 'القسم الرئيسي']);
+        const idxSubDeptName = getIndex(['القسم الداخلي', 'العيادة', 'sub department', 'internal department', 'القسم الفرعي', 'clinic']);
         const idxType = getIndex(['النوع', 'type']);
         const idxName = getIndex(['اسم الجهاز', 'device name']);
         const idxCustomId = getIndex(['id', 'code', 'كود', 'device code']);
@@ -402,8 +422,11 @@ export default function Assets() {
         const idxAccessories = getIndex(['التوابع', 'الملحقات', 'توابع', 'accessories']);
         const idxNotes = getIndex(['ملاحظة', 'ملاحظات', 'notes']);
 
-        const importedDevices: Device[] = [];
-        const uniqueDepts = new Set<string>();
+        const importedRows: {
+          devData: Omit<Device, 'departmentId'>;
+          mainDeptName: string;
+          subDeptName: string;
+        }[] = [];
         
         // Skip header
         for (let i = 1; i < lines.length; i++) {
@@ -414,7 +437,8 @@ export default function Assets() {
           
           const getCol = (idx: number) => idx !== -1 && columns[idx] ? clean(columns[idx]) : '';
 
-          const deptName = getCol(idxDeptName);
+          const deptName = getCol(idxDeptName) || 'عام';
+          const subDeptName = getCol(idxSubDeptName);
           const type = getCol(idxType);
           const name = getCol(idxName);
           const customId = getCol(idxCustomId);
@@ -429,50 +453,104 @@ export default function Assets() {
           const accessoriesRaw = getCol(idxAccessories);
           const notes = getCol(idxNotes);
 
-          if (deptName) uniqueDepts.add(deptName);
-
-          importedDevices.push({
-            id: `dev-imported-${i}-${Date.now()}`,
-            departmentId: deptName, // temporary
-            name,
-            type,
-            customId,
-            currentQty,
-            bookQty,
-            difference: bookQty - currentQty,
-            model,
-            serialNumber,
-            company,
-            status,
-            custodian,
-            accessories: accessoriesRaw ? accessoriesRaw.split(' / ') : [],
-            notes
+          importedRows.push({
+            mainDeptName: deptName,
+            subDeptName: subDeptName,
+            devData: {
+              id: `dev-imported-${i}-${Date.now()}`,
+              name,
+              type,
+              customId,
+              currentQty,
+              bookQty,
+              difference: bookQty - currentQty,
+              model,
+              serialNumber,
+              company,
+              status,
+              custodian,
+              accessories: accessoriesRaw ? accessoriesRaw.split(' / ') : [],
+              notes
+            }
           });
         }
 
-        // Map department names to IDs (or create new departments)
+        // Map department names to IDs and construct hierarchy automatically
         const updatedDepts = [...departments];
-        uniqueDepts.forEach((deptName) => {
-          if (!updatedDepts.some((d) => d.name === deptName)) {
-            updatedDepts.push({ id: `d-imported-${deptName}-${Date.now()}`, name: deptName });
+
+        const getOrCreateDepartment = (name: string, parentId?: string): string => {
+          const trimmed = name.trim();
+          let found = updatedDepts.find((d) => d.name.trim().toLowerCase() === trimmed.toLowerCase());
+          if (!found) {
+            const newId = `d-imp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+            const newDept: Department = { id: newId, name: trimmed, ...(parentId ? { parentId } : {}) };
+            updatedDepts.push(newDept);
+            return newId;
+          }
+          return found.id;
+        };
+
+        const importedDevices: Device[] = [];
+
+        importedRows.forEach((row) => {
+          const mainName = row.mainDeptName.trim() || 'عام';
+          const subName = row.subDeptName ? row.subDeptName.trim() : '';
+
+          const mainId = getOrCreateDepartment(mainName, undefined);
+          let targetDeptId = mainId;
+
+          if (subName && subName !== mainName) {
+            targetDeptId = getOrCreateDepartment(subName, mainId);
+          }
+
+          importedDevices.push({
+            ...row.devData,
+            departmentId: targetDeptId
+          });
+        });
+
+        // Resolve device department IDs and merge/update by customId to prevent duplicate IDs
+        const existingDevicesMap = new Map<string, Device>();
+        devices.forEach(dev => {
+          if (dev.customId) {
+            existingDevicesMap.set(dev.customId.trim().toLowerCase(), dev);
+          } else {
+            existingDevicesMap.set(dev.name.trim().toLowerCase(), dev);
           }
         });
 
-        // Resolve device department IDs
-        const finalDevices = importedDevices.map((dev) => {
-          const matchedDept = updatedDepts.find((d) => d.name === dev.departmentId);
-          return {
-            ...dev,
-            departmentId: matchedDept ? matchedDept.id : 'd-1'
-          };
+        let updatedCount = 0;
+        let addedCount = 0;
+
+        importedDevices.forEach((dev) => {
+          const key = dev.customId ? dev.customId.trim().toLowerCase() : dev.name.trim().toLowerCase();
+
+          if (existingDevicesMap.has(key)) {
+            // Update existing device while preserving its original ID and image
+            const existingDev = existingDevicesMap.get(key)!;
+            existingDevicesMap.set(key, {
+              ...existingDev,
+              ...dev,
+              id: existingDev.id,
+              departmentId: dev.departmentId,
+              imageUrl: existingDev.imageUrl || dev.imageUrl
+            });
+            updatedCount++;
+          } else {
+            // Add as new device
+            existingDevicesMap.set(key, dev);
+            addedCount++;
+          }
         });
+
+        const mergedDevices = Array.from(existingDevicesMap.values());
 
         importDatabase({
           departments: updatedDepts,
-          devices: [...devices, ...finalDevices]
+          devices: mergedDevices
         });
 
-        showAlert('success', `تم استيراد ${finalDevices.length} من الأجهزة والعهد بنجاح!`);
+        showAlert('success', `تم استيراد الجرد بنجاح! (إضافة ${addedCount} جديد، تحديث ${updatedCount} موجود)`);
       } catch (err) {
         showAlert('error', 'فشل في قراءة ملف CSV. تأكد من توافق الأعمدة والترميز.');
       }
@@ -509,6 +587,17 @@ export default function Assets() {
           >
             الأقسام والعهد
           </span>
+          {parentDept && (
+            <>
+              <ArrowRight size={16} className="text-slate-300" />
+              <span 
+                className="cursor-pointer text-slate-400 hover:text-slate-800 transition-colors font-bold"
+                onClick={() => { setSelectedDeptId(parentDept.id); setSelectedDeviceId(null); }}
+              >
+                {parentDept.name}
+              </span>
+            </>
+          )}
           {selectedDeptId && (
             <>
               <ArrowRight size={16} className="text-slate-300" />
@@ -571,14 +660,6 @@ export default function Assets() {
             />
 
             <button
-              onClick={handleBackupDatabase}
-              className="flex items-center gap-2 bg-blue-50 text-blue-700 hover:bg-blue-100 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border border-blue-200"
-            >
-              <Download size={14} />
-              نسخة احتياطية (JSON)
-            </button>
-
-            <button
               onClick={handleDownloadImagesZip}
               className="flex items-center gap-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border border-emerald-200"
             >
@@ -594,10 +675,12 @@ export default function Assets() {
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {displayedDepartments.map((dept) => {
-              const deptDevs = devices.filter((d) => d.departmentId === dept.id);
+              const allIds = getDeptAndChildrenIds(dept.id);
+              const deptDevs = devices.filter((d) => allIds.includes(d.departmentId));
               const activeCount = deptDevs.filter((d) => d.status === 'شغال').length;
               const inactiveCount = deptDevs.filter((d) => d.status === 'عاطل').length;
               const damagedCount = deptDevs.filter((d) => d.status === 'تالف').length;
+              const childCount = departments.filter((d) => d.parentId === dept.id).length;
 
               return (
                 <div 
@@ -609,7 +692,9 @@ export default function Assets() {
                     <h3 className="text-lg font-bold text-slate-800 group-hover:text-blue-800 transition-colors">
                       {dept.name}
                     </h3>
-                    <p className="text-xs text-slate-400 mt-1">العهد والأصول الطبية التابعة</p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {childCount > 0 ? `يحتوي على ${childCount} عيادة/قسم فرعي` : 'العهد والأصول الطبية التابعة'}
+                    </p>
                   </div>
 
                   <div className="grid grid-cols-3 gap-2 text-center mt-4 pt-4 border-t border-slate-100">
@@ -633,7 +718,7 @@ export default function Assets() {
             {/* Add Department Box for Admins */}
             {currentUser?.role === 'admin' && (
               <div 
-                onClick={() => setIsDeptModalOpen(true)}
+                onClick={() => { setNewDeptParentId(undefined); setIsDeptModalOpen(true); }}
                 className="bg-dashed border-2 border-slate-300 hover:border-blue-500 rounded-2xl flex flex-col items-center justify-center p-6 h-48 cursor-pointer transition-colors bg-slate-50/50 hover:bg-blue-50/20 group"
               >
                 <div className="bg-slate-200 text-slate-700 group-hover:bg-blue-100 group-hover:text-blue-800 p-3 rounded-full transition-colors mb-3">
@@ -668,57 +753,174 @@ export default function Assets() {
             )}
           </div>
 
+          {/* Sub-departments & Clinics Section */}
+          {(childDepartments.length > 0 || currentUser?.role === 'admin') && (
+            <div className="bg-slate-50/80 p-6 rounded-2xl border border-slate-200 space-y-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <FolderTree className="text-blue-600" size={20} />
+                    العيادات والأقسام الفرعية التابعة لـ ({activeDept?.name})
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {childDepartments.length > 0 
+                      ? `يحتوي هذا القسم على ${childDepartments.length} عيادة/قسم فرعي. اضغط على أي عيادة للدخول إليها وعرض أصولها.` 
+                      : 'لا توجد عيادات أو أقسام فرعية تابعة لهذا القسم بعد. يمكنك إضافتها أو ربطها الآن.'}
+                  </p>
+                </div>
+
+                {currentUser?.role === 'admin' && (
+                  <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                    <button
+                      onClick={() => {
+                        setNewDeptParentId(selectedDeptId || undefined);
+                        setIsDeptModalOpen(true);
+                      }}
+                      className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
+                    >
+                      <Plus size={14} />
+                      إضافة عيادة فرعية جديدة
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedDeptsToLink(childDepartments.map((c) => c.id));
+                        setIsLinkModalOpen(true);
+                      }}
+                      className="flex items-center gap-1.5 bg-white hover:bg-slate-100 text-slate-700 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border border-slate-300 shadow-sm"
+                    >
+                      <LinkIcon size={14} />
+                      ربط عيادات موجودة من الجرد
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {childDepartments.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                  {childDepartments.map((childDept) => {
+                    const cDevs = devices.filter((d) => d.departmentId === childDept.id);
+                    const cActive = cDevs.filter((d) => d.status === 'شغال').length;
+                    const cInactive = cDevs.filter((d) => d.status === 'عاطل').length;
+                    const cDamaged = cDevs.filter((d) => d.status === 'تالف').length;
+
+                    return (
+                      <div
+                        key={childDept.id}
+                        onClick={() => setSelectedDeptId(childDept.id)}
+                        className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 hover:border-blue-500 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group"
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="font-bold text-slate-800 group-hover:text-blue-600 transition-colors text-base">
+                            {childDept.name}
+                          </h4>
+                          <span className="bg-blue-50 text-blue-700 text-xs px-2.5 py-1 rounded-full font-bold">
+                            {cDevs.length} أصول
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-slate-500 pt-3 border-t border-slate-100">
+                          <span className="text-emerald-700 font-bold">شغال: {cActive}</span>
+                          <span className="text-red-700 font-bold">عاطل: {cInactive}</span>
+                          <span className="text-amber-700 font-bold">تالف: {cDamaged}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-4">
+            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <Package className="text-slate-600" size={20} />
+              {showAllChildDevices ? `جميع أصول (${activeDept?.name}) والعيادات التابعة` : `الأصول والأجهزة المباشرة في (${activeDept?.name})`}
+              <span className="text-sm font-normal text-slate-500">({deptDevices.length} جهاز)</span>
+            </h3>
+            {childDepartments.length > 0 && (
+              <button
+                onClick={() => setShowAllChildDevices(!showAllChildDevices)}
+                className="text-xs font-bold bg-white hover:bg-slate-100 text-slate-700 px-3.5 py-2 rounded-xl border border-slate-300 transition-colors shadow-sm cursor-pointer"
+              >
+                {showAllChildDevices ? '📍 عرض الأجهزة المباشرة فقط' : `🌐 عرض جميع أجهزة العيادات التابعة (${childDepartments.length} عيادة)`}
+              </button>
+            )}
+          </div>
+
           {/* List of devices */}
           {deptDevices.length === 0 ? (
-            <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-12 text-center">
-              <Package size={48} className="text-slate-300 mx-auto mb-4" />
-              <h3 className="font-bold text-slate-700 mb-1">لا توجد أجهزة مسجلة في هذا القسم بعد!</h3>
-              <p className="text-slate-700 text-sm">ابدأ بإدخال أول جهاز للمراقبة الطبية.</p>
-            </div>
+            childDepartments.length > 0 && !showAllChildDevices ? (
+              <div className="bg-slate-50 border-2 border-dashed border-blue-200 rounded-2xl p-10 text-center">
+                <FolderTree size={48} className="text-blue-500 mx-auto mb-3 animate-pulse" />
+                <h3 className="font-bold text-slate-800 text-lg mb-2">هذا قسم مستشفى رئيسي يحتوي على ({childDepartments.length}) عيادة/قسم داخلي</h3>
+                <p className="text-slate-600 text-sm max-w-md mx-auto mb-5 leading-relaxed">
+                  تم توزيع الأجهزة الطبيّة داخل العيادات والأقسام الفرعية التابعة له. اضغط على إحدى العيادات من القائمة أعلاه للدخول إليها وعرض أجهزتها بشكل منفصل.
+                </p>
+                <button
+                  onClick={() => setShowAllChildDevices(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer inline-flex items-center gap-2"
+                >
+                  🌐 عرض جميع أجهزة العيادات التابعة في هذه الشاشة
+                </button>
+              </div>
+            ) : (
+              <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-12 text-center">
+                <Package size={48} className="text-slate-300 mx-auto mb-4" />
+                <h3 className="font-bold text-slate-700 mb-1">لا توجد أجهزة مسجلة في هذا القسم بعد!</h3>
+                <p className="text-slate-700 text-sm">ابدأ بإدخال أول جهاز للمراقبة الطبية.</p>
+              </div>
+            )
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              {deptDevices.map((dev) => (
-                <div
-                  key={dev.id}
-                  onClick={() => setSelectedDeviceId(dev.id)}
-                  className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md hover:border-blue-400 transition-all cursor-pointer flex flex-col justify-between"
-                >
-                  <div className="h-44 bg-slate-50 relative">
-                    {dev.imageUrl ? (
-                      <img 
-                        src={dev.imageUrl} 
-                        alt={dev.name} 
-                        className="w-full h-full object-cover"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-2 bg-slate-100">
-                        <ImageIcon size={36} />
-                        <span className="text-xs">لا توجد صورة للجهاز</span>
+              {deptDevices.map((dev) => {
+                const devDeptName = departments.find((d) => d.id === dev.departmentId)?.name;
+                return (
+                  <div
+                    key={dev.id}
+                    onClick={() => setSelectedDeviceId(dev.id)}
+                    className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md hover:border-blue-400 transition-all cursor-pointer flex flex-col justify-between"
+                  >
+                    <div className="h-44 bg-slate-50 relative">
+                      {dev.imageUrl ? (
+                        <img 
+                          src={dev.imageUrl} 
+                          alt={dev.name} 
+                          className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-2 bg-slate-100">
+                          <ImageIcon size={36} />
+                          <span className="text-xs">لا توجد صورة للجهاز</span>
+                        </div>
+                      )}
+                      <span className={`absolute top-3 right-3 text-xs font-bold px-3 py-1 rounded-full border shadow-sm ${
+                        dev.status === 'شغال' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                        dev.status === 'عاطل' ? 'bg-red-50 text-red-800 border-red-200' :
+                        'bg-amber-50 text-amber-800 border-amber-200'
+                      }`}>
+                        {dev.status}
+                      </span>
+                    </div>
+
+                    <div className="p-5 flex-1 flex flex-col justify-between">
+                      <div>
+                        {dev.departmentId !== selectedDeptId && devDeptName && (
+                          <span className="inline-block bg-blue-50 text-blue-700 text-[11px] font-bold px-2 py-0.5 rounded-md mb-2 border border-blue-100">
+                            📍 {devDeptName}
+                          </span>
+                        )}
+                        <h4 className="font-bold text-slate-800 line-clamp-1 mb-1">{dev.name}</h4>
+                        <p className="text-slate-700 text-xs font-medium mb-3">موديل: {dev.model || 'غير محدد'}</p>
                       </div>
-                    )}
-                    <span className={`absolute top-3 right-3 text-xs font-bold px-3 py-1 rounded-full border shadow-sm ${
-                      dev.status === 'شغال' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
-                      dev.status === 'عاطل' ? 'bg-red-50 text-red-800 border-red-200' :
-                      'bg-amber-50 text-amber-800 border-amber-200'
-                    }`}>
-                      {dev.status}
-                    </span>
-                  </div>
 
-                  <div className="p-5 flex-1 flex flex-col justify-between">
-                    <div>
-                      <h4 className="font-bold text-slate-800 line-clamp-1 mb-1">{dev.name}</h4>
-                      <p className="text-slate-700 text-xs font-medium mb-3">موديل: {dev.model || 'غير محدد'}</p>
-                    </div>
-
-                    <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs text-slate-800">
-                      <span>الرقم المخصص (ID):</span>
-                      <strong className="font-mono text-slate-800 font-bold">{dev.customId}</strong>
+                      <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs text-slate-800">
+                        <span>الرقم المخصص (ID):</span>
+                        <strong className="font-mono text-slate-800 font-bold">{dev.customId}</strong>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -734,7 +936,11 @@ export default function Assets() {
               </button>
 
               <button
-                onClick={() => { setEditDeptName(activeDept?.name || ''); setIsEditDeptOpen(true); }}
+                onClick={() => { 
+                  setEditDeptName(activeDept?.name || ''); 
+                  setEditDeptParentId(activeDept?.parentId || undefined); 
+                  setIsEditDeptOpen(true); 
+                }}
                 className="text-slate-800 hover:bg-slate-100 px-4 py-2.5 rounded-xl transition-all cursor-pointer border border-transparent hover:border-slate-200 text-sm font-bold flex items-center gap-2"
               >
                 <Edit3 size={16} />
@@ -797,14 +1003,15 @@ export default function Assets() {
                       <input 
                         type="file" 
                         ref={updateImageRef}
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              updateDevice(activeDevice.id, { imageUrl: reader.result as string });
-                            };
-                            reader.readAsDataURL(file);
+                            try {
+                              const compressed = await compressImage(file, 800, 0.7);
+                              updateDevice(activeDevice.id, { imageUrl: compressed });
+                            } catch (err) {
+                              console.error(err);
+                            }
                           }
                         }}
                         accept="image/*" 
@@ -955,18 +1162,35 @@ export default function Assets() {
             >
               <X size={20} />
             </button>
-            <h3 className="text-lg font-bold text-slate-800 mb-4">إضافة قسم مستشفى جديد</h3>
+            <h3 className="text-lg font-bold text-slate-800 mb-4">إضافة قسم مستشفى أو عيادة جديدة</h3>
             <form onSubmit={handleAddDeptSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-800 mb-1.5">اسم القسم الطبي</label>
+                <label className="block text-xs font-bold text-slate-800 mb-1.5">اسم القسم أو العيادة *</label>
                 <input 
                   type="text" 
                   value={newDeptName}
                   onChange={(e) => setNewDeptName(e.target.value)}
-                  placeholder="مثال: قسم الباطنية" 
+                  placeholder="مثال: عيادة الأسنان" 
                   className="w-full px-3 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-medium text-right"
                   required
                 />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-800 mb-1.5">يتبع لقسم رئيسي (اختياري - لإنشاء عيادة فرعية)</label>
+                <select
+                  value={newDeptParentId || ''}
+                  onChange={(e) => setNewDeptParentId(e.target.value || undefined)}
+                  className="w-full px-3 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-medium bg-white"
+                >
+                  <option value="">-- بدون قسم رئيسي (قسم أساسي مستقل) --</option>
+                  {departments
+                    .filter((d) => !d.parentId)
+                    .map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                      </option>
+                    ))}
+                </select>
               </div>
               <button 
                 type="submit" 
@@ -989,10 +1213,10 @@ export default function Assets() {
             >
               <X size={20} />
             </button>
-            <h3 className="text-lg font-bold text-slate-800 mb-4">تعديل اسم القسم الطبي</h3>
+            <h3 className="text-lg font-bold text-slate-800 mb-4">تعديل بيانات القسم / العيادة</h3>
             <form onSubmit={handleEditDeptSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-800 mb-1.5">اسم القسم الجديد</label>
+                <label className="block text-xs font-bold text-slate-800 mb-1.5">اسم القسم الجديد *</label>
                 <input 
                   type="text" 
                   value={editDeptName}
@@ -1002,13 +1226,118 @@ export default function Assets() {
                   required
                 />
               </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-800 mb-1.5">يتبع لقسم رئيسي (اختياري - لإنشاء عيادة فرعية)</label>
+                <select
+                  value={editDeptParentId || ''}
+                  onChange={(e) => setEditDeptParentId(e.target.value || undefined)}
+                  className="w-full px-3 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-medium bg-white"
+                >
+                  <option value="">-- بدون قسم رئيسي (قسم أساسي مستقل) --</option>
+                  {departments
+                    .filter((d) => !d.parentId && d.id !== selectedDeptId)
+                    .map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
               <button 
                 type="submit" 
                 className="w-full bg-slate-900 hover:bg-slate-800 text-white py-2.5 px-4 rounded-xl font-bold text-sm transition-colors cursor-pointer"
               >
-                تحديث الاسم
+                تحديث البيانات
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: Link Existing Departments / Clinics */}
+      {isLinkModalOpen && selectedDeptId && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-200 w-full max-w-lg text-right relative max-h-[85vh] flex flex-col">
+            <button 
+              onClick={() => setIsLinkModalOpen(false)} 
+              className="absolute top-4 left-4 text-slate-400 hover:text-slate-800 cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+            <h3 className="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2">
+              <LinkIcon className="text-blue-600" size={20} />
+              ربط عيادات وأقسام موجودة بـ ({activeDept?.name})
+            </h3>
+            <p className="text-xs text-slate-500 mb-4">
+              اختر الأقسام أو العيادات من القائمة أدناه لتصبح تابعة مباشرة لهذا القسم:
+            </p>
+
+            <div className="overflow-y-auto max-h-[50vh] border border-slate-200 rounded-xl p-3 space-y-2 mb-4 bg-slate-50">
+              {departments
+                .filter((d) => d.id !== selectedDeptId && !departments.some((child) => child.parentId === d.id))
+                .map((d) => {
+                  const isChecked = selectedDeptsToLink.includes(d.id);
+                  return (
+                    <label
+                      key={d.id}
+                      className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                        isChecked 
+                          ? 'bg-blue-50/80 border-blue-300 text-blue-900 font-bold' 
+                          : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedDeptsToLink([...selectedDeptsToLink, d.id]);
+                            } else {
+                              setSelectedDeptsToLink(selectedDeptsToLink.filter((id) => id !== d.id));
+                            }
+                          }}
+                          className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span className="text-sm">{d.name}</span>
+                      </div>
+                      {d.parentId && d.parentId !== selectedDeptId && (
+                        <span className="text-[11px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                          تابع حالياً لـ ({departments.find((p) => p.id === d.parentId)?.name || 'قسم آخر'})
+                        </span>
+                      )}
+                    </label>
+                  );
+                })}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  departments.forEach((d) => {
+                    if (d.id === selectedDeptId) return;
+                    const wasLinked = d.parentId === selectedDeptId;
+                    const isNowLinked = selectedDeptsToLink.includes(d.id);
+                    if (isNowLinked && !wasLinked) {
+                      updateDepartment(d.id, d.name, selectedDeptId);
+                    } else if (!isNowLinked && wasLinked) {
+                      updateDepartment(d.id, d.name, undefined);
+                    }
+                  });
+                  setIsLinkModalOpen(false);
+                  showAlert('success', 'تم تحديث ربط العيادات والأقسام الفرعية بنجاح!');
+                }}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 px-4 rounded-xl font-bold text-sm transition-colors cursor-pointer shadow-md"
+              >
+                حفظ التغييرات
+              </button>
+              <button
+                onClick={() => setIsLinkModalOpen(false)}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 px-4 rounded-xl font-bold text-sm transition-colors cursor-pointer"
+              >
+                إلغاء
+              </button>
+            </div>
           </div>
         </div>
       )}
