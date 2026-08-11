@@ -13,11 +13,6 @@ import {
   PRIMARY_DB_FILE_NAME,
   DriveFileItem,
 } from '../lib/googleDrive';
-import {
-  getCustomFirebaseConfig,
-  setCustomFirebaseConfig,
-  clearCustomFirebaseConfig,
-} from '../lib/firebase';
 import { useAppStore } from '../store';
 import { 
   Cloud, 
@@ -32,9 +27,7 @@ import {
   FileSpreadsheet, 
   Database,
   LogOut,
-  Loader2,
-  Settings,
-  HelpCircle
+  Loader2
 } from 'lucide-react';
 import { saveAs } from 'file-saver';
 
@@ -51,30 +44,8 @@ export default function GoogleDriveModal({ isOpen, onClose }: GoogleDriveModalPr
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  const [showFirebaseSettings, setShowFirebaseSettings] = useState(false);
-  const [customConfigJson, setCustomConfigJson] = useState(() => {
-    const existing = getCustomFirebaseConfig();
-    return existing ? JSON.stringify(existing, null, 2) : '';
-  });
 
   const { importDatabase, departments, devices, requests, trackings, users, oilFilterInterval, trackingCategories, accessoriesList } = useAppStore();
-
-  const handleSaveCustomConfig = () => {
-    try {
-      const parsed = JSON.parse(customConfigJson.trim());
-      if (!parsed.apiKey || !parsed.projectId) {
-        showAlert('error', 'يجب أن يحتوي ملف الإعدادات على apiKey و projectId على الأقل.');
-        return;
-      }
-      setCustomFirebaseConfig(parsed);
-    } catch (e: any) {
-      showAlert('error', 'تنسيق JSON غير صحيح: ' + e.message);
-    }
-  };
-
-  const handleClearCustomConfig = () => {
-    clearCustomFirebaseConfig();
-  };
 
   const showAlert = (type: 'success' | 'error', message: string) => {
     setAlert({ type, message });
@@ -530,60 +501,6 @@ export default function GoogleDriveModal({ isOpen, onClose }: GoogleDriveModalPr
                 </div>
                 <span className="text-sm font-bold">Sign in with Google (تسجيل الدخول مع Google)</span>
               </button>
-
-              {/* Custom Netlify / Firebase Config Button */}
-              <div className="w-full max-w-md pt-2 border-t border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setShowFirebaseSettings(!showFirebaseSettings)}
-                  className="w-full flex items-center justify-center gap-2 text-xs font-bold text-slate-600 hover:text-blue-700 py-2.5 px-4 rounded-xl bg-slate-100/80 hover:bg-blue-50/80 transition-all border border-slate-200/60"
-                >
-                  <Settings size={14} />
-                  <span>{showFirebaseSettings ? 'إخفاء إعدادات رابط Firebase المخصص' : '⚙️ إعدادات رابط Firebase المخصص (لحل مشكلة Netlify)'}</span>
-                </button>
-
-                {showFirebaseSettings && (
-                  <div className="mt-3 bg-white border border-blue-200 rounded-2xl p-4 text-right shadow-sm space-y-3">
-                    <div className="flex items-start gap-2 text-xs text-slate-700 bg-blue-50/60 p-3 rounded-xl border border-blue-100">
-                      <HelpCircle size={16} className="text-blue-600 shrink-0 mt-0.5" />
-                      <div className="space-y-1">
-                        <p className="font-bold text-blue-900">كيف تحل مشكلة نطاق Netlify مجاناً ودون تعديل الكود؟</p>
-                        <p className="text-[11px] text-slate-600 leading-relaxed">
-                          أنشئ مشروعاً مجانياً جديداً في <b>console.firebase.google.com</b>، وأضف رابط موقعك في Netlify إلى <b>Authorized domains</b>، ثم انسخ إعدادات مشروعك (firebaseConfig JSON) والصقها هنا:
-                        </p>
-                      </div>
-                    </div>
-
-                    <textarea
-                      value={customConfigJson}
-                      onChange={(e) => setCustomConfigJson(e.target.value)}
-                      rows={6}
-                      placeholder='{ "apiKey": "AIza...", "authDomain": "...", "projectId": "...", ... }'
-                      className="w-full text-left font-mono text-xs bg-slate-50 border border-slate-300 rounded-xl p-3 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                      dir="ltr"
-                    />
-
-                    <div className="flex items-center justify-end gap-2">
-                      {getCustomFirebaseConfig() && (
-                        <button
-                          type="button"
-                          onClick={handleClearCustomConfig}
-                          className="px-3 py-1.5 rounded-xl text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 transition-all"
-                        >
-                          إلغاء المخصص (استعادة الافتراضي)
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={handleSaveCustomConfig}
-                        className="px-4 py-1.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all"
-                      >
-                        حفظ الإعدادات وتنشيط النطاق
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
           ) : (
             /* Connected user UI */
