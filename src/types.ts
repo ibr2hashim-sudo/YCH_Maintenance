@@ -13,7 +13,6 @@ export interface User {
 export interface Department {
   id: string;
   name: string;
-  parentId?: string; // لربط العيادات والأقسام الفرعية بقسم رئيسي
 }
 
 export interface Device {

@@ -22,7 +22,7 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-slate-100 flex" dir="rtl">
       {/* Sidebar */}
-      <aside className="w-72 bg-white text-black flex flex-col shadow-md z-10 border-l border-slate-300 print:hidden">
+      <aside className="w-72 bg-white text-black flex flex-col shadow-md z-10 border-l border-slate-300">
         <div className="p-6 border-b border-slate-200">
           <h2 className="text-xl font-bold flex items-center gap-3 text-black">
             <div className="bg-blue-800 p-2 rounded-lg">
@@ -100,17 +100,17 @@ export default function Layout() {
                   }
                 }
               }}
-              className="flex items-center justify-center gap-3 px-4 py-3 w-full text-amber-700 font-bold hover:bg-amber-50 rounded-xl transition-colors border border-amber-300 hover:border-amber-500 cursor-pointer text-sm"
+              className="flex items-center justify-center gap-3 px-4 py-3 w-full text-amber-700 font-bold hover:bg-amber-50 rounded-xl transition-colors border border-amber-300 hover:border-amber-500 cursor-pointer"
             >
-              <RefreshCw size={18} />
-              استعادة ضبط المصنع
+              <RefreshCw size={20} />
+              Reset Data
             </button>
           )}
           <button 
             onClick={logout}
-            className="flex items-center justify-center gap-3 px-4 py-3 w-full text-red-700 font-bold hover:bg-red-50 rounded-xl transition-colors border border-red-300 hover:border-red-500 cursor-pointer text-sm"
+            className="flex items-center justify-center gap-3 px-4 py-3 w-full text-red-700 font-bold hover:bg-red-50 rounded-xl transition-colors border border-red-300 hover:border-red-500 cursor-pointer"
           >
-            <LogOut size={18} />
+            <LogOut size={20} />
             تسجيل الخروج
           </button>
         </div>
@@ -118,7 +118,7 @@ export default function Layout() {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-h-0 overflow-hidden relative bg-slate-100">
-        <header className="px-8 py-6 flex justify-between items-center text-black z-10 border-b border-slate-300 bg-white shadow-sm mb-6 print:hidden">
+        <header className="px-8 py-6 flex justify-between items-center text-black z-10 border-b border-slate-300 bg-white shadow-sm mb-6">
           <div>
             <h1 className="text-2xl font-bold text-black">لوحة التحكم</h1>
             <p className="text-slate-900 mt-1 font-bold">نظام إدارة متكامل للعهد والمتابعة</p>

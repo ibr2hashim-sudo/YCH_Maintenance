@@ -11,77 +11,142 @@ import { db } from './firebase';
 import { useAppStore } from '../store';
 import { User, Department, Device, MaintenanceRequest, MaintenanceTracking } from '../types';
 
-export function sanitizeForFirestore(obj: any): any {
-  if (obj === null || obj === undefined) return null;
-  if (typeof obj === 'function' || typeof obj === 'symbol') return null;
-  if (typeof obj !== 'object') return obj;
-  if (obj instanceof Date) return obj.toISOString();
-  if (Array.isArray(obj)) {
-    return obj
-      .map(item => (item === undefined ? null : sanitizeForFirestore(item)))
-      .filter(item => item !== undefined);
-  }
+export function sanitizeForFirestore<T extends Record<string, any>>(obj: T): T {
   const result: Record<string, any> = {};
   for (const key of Object.keys(obj)) {
     const val = obj[key];
-    if (val !== undefined && typeof val !== 'function') {
-      result[key] = sanitizeForFirestore(val);
+    if (val !== undefined) {
+      if (val && typeof val === 'object' && !Array.isArray(val)) {
+        result[key] = sanitizeForFirestore(val);
+      } else {
+        result[key] = val;
+      }
     }
   }
-  return result;
-}
-
-export function compressImage(file: File, maxDimension = 800, quality = 0.7): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > maxDimension) {
-            height = Math.round((height * maxDimension) / width);
-            width = maxDimension;
-          }
-        } else {
-          if (height > maxDimension) {
-            width = Math.round((width * maxDimension) / height);
-            height = maxDimension;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', quality));
-        } else {
-          resolve(e.target?.result as string);
-        }
-      };
-      img.onerror = () => reject(new Error('Failed to load image'));
-      img.src = e.target?.result as string;
-    };
-    reader.onerror = () => reject(new Error('Failed to read file'));
-    reader.readAsDataURL(file);
-  });
+  return result as T;
 }
 
 const defaultUsers: User[] = [
   { id: 'u-1', username: 'admin', role: 'admin' },
   { id: 'u-2', username: 'tech1', role: 'tech' },
-  { id: 'u-3', username: 'sup1', role: 'supervisor' },
-  { id: 'u-4', username: 'sup2', role: 'supervisor' },
+  { id: 'u-3', username: 'sup1', role: 'supervisor', departmentId: 'd-1' },
+  { id: 'u-4', username: 'sup2', role: 'supervisor', departmentId: 'd-2' },
 ];
 
-const defaultDepartments: Department[] = [];
-const defaultDevices: Device[] = [];
-const defaultRequests: MaintenanceRequest[] = [];
-const defaultTrackings: MaintenanceTracking[] = [];
+const defaultDepartments: Department[] = [
+  { id: 'd-1', name: 'قسم الطوارئ' },
+  { id: 'd-2', name: 'قسم العناية المركزة' },
+  { id: 'd-3', name: 'قسم الأشعة' },
+];
+
+const defaultDevices: Device[] = [
+  {
+    id: 'dev-1',
+    departmentId: 'd-1',
+    name: 'جهاز تخطيط القلب ECG',
+    customId: 'ECG-109',
+    currentQty: 4,
+    bookQty: 5,
+    difference: 1,
+    model: 'Mac 2000',
+    serialNumber: 'SN-9831723',
+    company: 'GE Healthcare',
+    accessories: ['ECG Cable', 'SPO2'],
+    status: 'شغال',
+    custodian: 'أحمد العتيبي',
+    notes: 'جهاز تخطيط القلب يعمل بكفاءة ويحتاج لمعايرة دورية كل 6 أشهر.',
+    imageUrl: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=400&auto=format&fit=crop&q=60'
+  },
+  {
+    id: 'dev-2',
+    departmentId: 'd-2',
+    name: 'جهاز تنفس صناعي Ventilator',
+    customId: 'VENT-502',
+    currentQty: 3,
+    bookQty: 3,
+    difference: 0,
+    model: 'Evita V500',
+    serialNumber: 'SN-4829302',
+    company: 'Dräger',
+    accessories: ['bp Cuff', 'Bottle'],
+    status: 'عاطل',
+    custodian: 'سعد الشهري',
+    notes: 'متوقف مؤقتاً بانتظار استبدال صمام الهواء الرئيسي.',
+    imageUrl: 'https://images.unsplash.com/photo-1584515901367-f1c27b54ab7c?w=400&auto=format&fit=crop&q=60'
+  },
+  {
+    id: 'dev-3',
+    departmentId: 'd-1',
+    name: 'جهاز مراقبة المريض Patient Monitor',
+    customId: 'MON-304',
+    currentQty: 8,
+    bookQty: 8,
+    difference: 0,
+    model: 'BeneVision N17',
+    serialNumber: 'SN-7732910',
+    company: 'Mindray',
+    accessories: ['ECG Cable', 'SPO2', 'bp Cuff'],
+    status: 'شغال',
+    custodian: 'خالد الحربي',
+    notes: 'تم تحديث البرمجيات وتغيير البطاريات الاحتياطية حديثاً.',
+    imageUrl: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?w=400&auto=format&fit=crop&q=60'
+  }
+];
+
+const defaultRequests: MaintenanceRequest[] = [
+  {
+    id: 'req-1',
+    departmentId: 'd-2',
+    deviceId: 'dev-2',
+    date: '2026-07-18',
+    complaint: 'جهاز التنفس يعطي إنذار مستمر في ضغط تدفق الهواء والصمام يبدو عالقاً.',
+    status: 'pending',
+  },
+  {
+    id: 'req-2',
+    departmentId: 'd-1',
+    deviceId: 'dev-3',
+    date: '2026-07-15',
+    complaint: 'شاشة اللمس لا تستجيب في بعض الأحيان عند الضغط على إعدادات المريض.',
+    status: 'in_progress',
+    initialReport: 'تم فحص الشاشة وتبين وجود رطوبة خفيفة تحت الإطار الخارجي.',
+    requiredParts: 'شريط لاصق عازل + كابل شاشة مرن مرشح للاستبدال',
+  }
+];
+
+const defaultTrackings: MaintenanceTracking[] = [
+  {
+    id: 't-1',
+    deviceId: 'dev-1',
+    type: 'تكييف',
+    date: '2026-06-10',
+    details: {
+      action: 'تنظيف الفلاتر وفحص غاز الفريون بالكامل لغرفة الجهاز لضمان عدم تأثر الحساسات بالحرارة.'
+    }
+  },
+  {
+    id: 't-2',
+    deviceId: 'dev-2',
+    type: 'زيوت وفلاتر',
+    date: '2026-05-14',
+    details: {
+      currentCounter: 1200,
+      nextCounter: 6200,
+    }
+  },
+  {
+    id: 't-3',
+    deviceId: 'dev-3',
+    type: 'بطاريات',
+    date: '2026-07-01',
+    details: {
+      deviceName: 'جهاز مراقبة المريض Patient Monitor',
+      model: 'BeneVision N17',
+      serialNumber: 'SN-7732910',
+      replacementDate: '2026-07-01'
+    }
+  }
+];
 
 const defaultSettings = {
   oilFilterInterval: 5000,
@@ -95,94 +160,63 @@ export function initFirestoreSync() {
   if (initialized) return;
   initialized = true;
 
-  // Helper to get sanitized doc id
-  const getDocId = (id: string) => String(id).replace(/\//g, '_');
-
-  // 1. Sync Users directly from Firestore
   onSnapshot(collection(db, 'users'), (snapshot) => {
-    if (!snapshot.empty) {
-      const remoteUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-      useAppStore.setState({ users: remoteUsers });
+    if (snapshot.empty) {
+      defaultUsers.forEach(u => setDoc(doc(db, 'users', u.id), sanitizeForFirestore(u)).catch(() => {}));
     } else {
-      const localUsers = useAppStore.getState().users;
-      if (localUsers && localUsers.length > 0) {
-        localUsers.forEach(u => setDoc(doc(db, 'users', getDocId(u.id)), sanitizeForFirestore(u)).catch(() => {}));
-      } else {
-        defaultUsers.forEach(u => setDoc(doc(db, 'users', u.id), sanitizeForFirestore(u)).catch(() => {}));
-        useAppStore.setState({ users: defaultUsers });
-      }
+      const users = snapshot.docs.map(doc => doc.data() as User);
+      useAppStore.setState({ users });
     }
   }, (err) => console.warn('Users snapshot error:', err));
 
-  // 2. Sync Departments directly from Firestore
   onSnapshot(collection(db, 'departments'), (snapshot) => {
-    if (!snapshot.empty) {
-      const remoteDepts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Department));
-      useAppStore.setState({ departments: remoteDepts });
+    if (snapshot.empty) {
+      defaultDepartments.forEach(d => setDoc(doc(db, 'departments', d.id), sanitizeForFirestore(d)).catch(() => {}));
     } else {
-      const localDepts = useAppStore.getState().departments;
-      if (localDepts && localDepts.length > 0) {
-        localDepts.forEach(d => setDoc(doc(db, 'departments', getDocId(d.id)), sanitizeForFirestore(d)).catch(() => {}));
-      }
+      const departments = snapshot.docs.map(doc => doc.data() as Department);
+      useAppStore.setState({ departments });
     }
   }, (err) => console.warn('Departments snapshot error:', err));
 
-  // 3. Sync Devices directly from Firestore
   onSnapshot(collection(db, 'devices'), (snapshot) => {
-    if (!snapshot.empty) {
-      const remoteDevices = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Device));
-      useAppStore.setState({ devices: remoteDevices });
+    if (snapshot.empty) {
+      defaultDevices.forEach(dev => setDoc(doc(db, 'devices', dev.id), sanitizeForFirestore(dev)).catch(() => {}));
     } else {
-      const localDevices = useAppStore.getState().devices;
-      if (localDevices && localDevices.length > 0) {
-        localDevices.forEach(dev => setDoc(doc(db, 'devices', getDocId(dev.id)), sanitizeForFirestore(dev)).catch(() => {}));
-      }
+      const devices = snapshot.docs.map(doc => doc.data() as Device);
+      useAppStore.setState({ devices });
     }
   }, (err) => console.warn('Devices snapshot error:', err));
 
-  // 4. Sync Maintenance Requests directly from Firestore
   onSnapshot(collection(db, 'requests'), (snapshot) => {
-    if (!snapshot.empty) {
-      const remoteRequests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MaintenanceRequest));
-      useAppStore.setState({ requests: remoteRequests });
+    if (snapshot.empty) {
+      defaultRequests.forEach(r => setDoc(doc(db, 'requests', r.id), sanitizeForFirestore(r)).catch(() => {}));
     } else {
-      const localRequests = useAppStore.getState().requests;
-      if (localRequests && localRequests.length > 0) {
-        localRequests.forEach(r => setDoc(doc(db, 'requests', getDocId(r.id)), sanitizeForFirestore(r)).catch(() => {}));
-      }
+      const requests = snapshot.docs.map(doc => doc.data() as MaintenanceRequest);
+      useAppStore.setState({ requests });
     }
   }, (err) => console.warn('Requests snapshot error:', err));
 
-  // 5. Sync Tracking directly from Firestore
   onSnapshot(collection(db, 'trackings'), (snapshot) => {
-    if (!snapshot.empty) {
-      const remoteTrackings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MaintenanceTracking));
-      useAppStore.setState({ trackings: remoteTrackings });
+    if (snapshot.empty) {
+      defaultTrackings.forEach(t => setDoc(doc(db, 'trackings', t.id), sanitizeForFirestore(t)).catch(() => {}));
     } else {
-      const localTrackings = useAppStore.getState().trackings;
-      if (localTrackings && localTrackings.length > 0) {
-        localTrackings.forEach(t => setDoc(doc(db, 'trackings', getDocId(t.id)), sanitizeForFirestore(t)).catch(() => {}));
-      }
+      const trackings = snapshot.docs.map(doc => doc.data() as MaintenanceTracking);
+      useAppStore.setState({ trackings });
     }
   }, (err) => console.warn('Trackings snapshot error:', err));
 
-  // 6. Sync App Settings directly from Firestore
   onSnapshot(doc(db, 'appSettings', 'config'), (snapshot) => {
-    if (snapshot.exists() && snapshot.data()) {
-      const data = snapshot.data()!;
-      useAppStore.setState({
-        oilFilterInterval: data.oilFilterInterval ?? 5000,
-        trackingCategories: data.trackingCategories ?? ['تكييف', 'زيوت وفلاتر', 'بطاريات'],
-        accessoriesList: data.accessoriesList ?? ['ECG Cable', 'SPO2', 'bp Cuff', 'Bottle', '2 Bottle']
-      });
+    if (!snapshot.exists()) {
+      setDoc(doc(db, 'appSettings', 'config'), sanitizeForFirestore(defaultSettings)).catch(() => {});
     } else {
-      const currentState = useAppStore.getState();
-      const settingsToSave = {
-        oilFilterInterval: currentState.oilFilterInterval || defaultSettings.oilFilterInterval,
-        trackingCategories: currentState.trackingCategories?.length ? currentState.trackingCategories : defaultSettings.trackingCategories,
-        accessoriesList: currentState.accessoriesList?.length ? currentState.accessoriesList : defaultSettings.accessoriesList
-      };
-      setDoc(doc(db, 'appSettings', 'config'), sanitizeForFirestore(settingsToSave)).catch(() => {});
+      const data = snapshot.data();
+      if (data) {
+        useAppStore.setState({
+          oilFilterInterval: data.oilFilterInterval ?? 5000,
+          trackingCategories: data.trackingCategories ?? ['تكييف', 'زيوت وفلاتر', 'بطاريات'],
+          accessoriesList: data.accessoriesList ?? ['ECG Cable', 'SPO2', 'bp Cuff', 'Bottle', '2 Bottle']
+        });
+      }
     }
   }, (err) => console.warn('AppSettings snapshot error:', err));
 }
