@@ -299,7 +299,7 @@ export const useAppStore = create<AppState>()(
       }
     }),
     {
-      name: 'maintenance-cloud-auth-v1',
+      name: 'maintenance-storage-v2',
       partialize: (state) => ({ currentUser: state.currentUser }),
     }
   )

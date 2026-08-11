@@ -100,17 +100,17 @@ export default function Layout() {
                   }
                 }
               }}
-              className="flex items-center justify-center gap-3 px-4 py-3 w-full text-amber-700 font-bold hover:bg-amber-50 rounded-xl transition-colors border border-amber-300 hover:border-amber-500 cursor-pointer text-sm"
+              className="flex items-center justify-center gap-3 px-4 py-3 w-full text-amber-700 font-bold hover:bg-amber-50 rounded-xl transition-colors border border-amber-300 hover:border-amber-500 cursor-pointer"
             >
-              <RefreshCw size={18} />
-              استعادة ضبط المصنع
+              <RefreshCw size={20} />
+              Reset Data
             </button>
           )}
           <button 
             onClick={logout}
-            className="flex items-center justify-center gap-3 px-4 py-3 w-full text-red-700 font-bold hover:bg-red-50 rounded-xl transition-colors border border-red-300 hover:border-red-500 cursor-pointer text-sm"
+            className="flex items-center justify-center gap-3 px-4 py-3 w-full text-red-700 font-bold hover:bg-red-50 rounded-xl transition-colors border border-red-300 hover:border-red-500 cursor-pointer"
           >
-            <LogOut size={18} />
+            <LogOut size={20} />
             تسجيل الخروج
           </button>
         </div>
